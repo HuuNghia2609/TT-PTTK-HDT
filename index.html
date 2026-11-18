@@ -1,0 +1,2771 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NPK-SHOP | Hệ thống Bán hàng Trực tuyến</title>
+  <!-- Tải Tailwind CSS và Font Inter -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            emerald: {
+              500: '#10b981',
+              600: '#059669',
+            },
+            sky: {
+              500: '#0ea5e9',
+              600: '#0284c7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Tùy chỉnh thanh cuộn và hiệu ứng chuyển động */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0.5; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeInScale {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .animate-slide-right { animation: slideInRight 0.25s ease-out forwards; }
+    .animate-fade-scale { animation: fadeInScale 0.2s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[120] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- ========================================================================= -->
+  <!-- PHẦN 1: KHÔNG GIAN TRANG KHÁCH HÀNG (CUSTOMER STOREFRONT - #shop)         -->
+  <!-- ========================================================================= -->
+  <div id="shop-shell" class="hidden flex-1 flex flex-col min-h-screen">
+    <!-- Header Trang Khách hàng (Không chứa nút chuyển đổi Admin lộ liễu) -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-center justify-between gap-3 py-3">
+          <!-- Logo -->
+          <a href="#shop" onclick="navigateTo('#shop'); return false;" class="flex items-center gap-2.5 group">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-sky-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div>
+              <span class="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 bg-clip-text text-transparent tracking-tight">NPK-SHOP</span>
+              <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Công nghệ chính hãng • Giao siêu tốc</p>
+            </div>
+          </a>
+
+          <!-- Thanh tìm kiếm sản phẩm (UC02) -->
+          <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 md:max-w-md lg:max-w-lg">
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+              <input
+                id="global-search-input"
+                type="text"
+                placeholder="Tìm tên sản phẩm, mã SKU, danh mục..."
+                oninput="handleSearchInput(this.value)"
+                class="w-full pl-10 pr-9 py-2 bg-slate-100/80 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all"
+              />
+              <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Xóa tìm kiếm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Khu vực Tài khoản & Giỏ hàng (Thay đổi theo trạng thái đăng nhập) -->
+          <div class="order-2 md:order-3 flex items-center gap-2">
+            <!-- Khi CHƯA ĐĂNG NHẬP -->
+            <div id="header-guest-actions" class="flex items-center gap-2">
+              <button
+                onclick="openAuthModal('login')"
+                class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition"
+              >
+                Đăng nhập
+              </button>
+              <button
+                onclick="openAuthModal('register')"
+                class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-sm transition"
+              >
+                Đăng ký
+              </button>
+            </div>
+
+            <!-- Khi ĐÃ ĐĂNG NHẬP -->
+            <div id="header-user-actions" class="hidden items-center gap-2">
+              <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-sky-600 text-white text-xs font-extrabold flex items-center justify-center" id="header-user-avatar">K</div>
+                <div class="leading-tight">
+                  <p id="header-user-name" class="text-xs font-bold text-slate-800 max-w-[110px] truncate"></p>
+                  <p id="header-user-tier" class="text-[10px] font-semibold text-emerald-700"></p>
+                </div>
+              </div>
+
+              <button
+                onclick="openMyOrdersModal()"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-sky-300 transition"
+              >
+                <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span class="hidden lg:inline">Đơn hàng của tôi</span>
+              </button>
+
+              <button
+                onclick="logoutCustomer()"
+                class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition"
+                title="Đăng xuất"
+              >
+                <span class="hidden sm:inline">Đăng xuất</span>
+                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              </button>
+            </div>
+
+            <!-- Nút Giỏ hàng (UC03 - Luôn hiển thị cho cả khách vãng lai) -->
+            <button
+              onclick="openCartDrawer()"
+              class="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-sky-600 hover:from-emerald-600 hover:to-sky-700 shadow-md shadow-sky-500/20 transition"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span class="hidden sm:inline">Giỏ hàng</span>
+              <span id="cart-badge" class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-extrabold bg-white text-emerald-700 rounded-full shadow-sm">0</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Nội dung Cửa hàng -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <!-- Banner ưu đãi -->
+      <div class="mb-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 p-5 sm:p-7 text-white shadow-lg shadow-teal-600/15 relative overflow-hidden">
+        <div class="absolute right-0 top-0 -mt-8 -mr-8 w-52 h-52 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-semibold tracking-wide mb-2">MUA SẮM TRỰC TUYẾN • CHÍNH HÃNG 100%</span>
+            <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">Thiết bị Công nghệ &amp; Phụ kiện Cao cấp</h1>
+            <p class="text-emerald-50 text-sm mt-1">Áp dụng mã <strong class="bg-white/20 px-1.5 py-0.5 rounded font-mono">GIAM100K</strong> (giảm 100.000đ) hoặc <strong class="bg-white/20 px-1.5 py-0.5 rounded font-mono">SALE20</strong> (giảm 20%, tối đa 300.000đ).</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="copyVoucherQuick('GIAM100K')" class="px-3.5 py-2 rounded-xl bg-white text-emerald-700 font-bold text-xs shadow hover:bg-emerald-50 transition">Sao chép GIAM100K</button>
+            <button onclick="copyVoucherQuick('SALE20')" class="px-3.5 py-2 rounded-xl bg-sky-900/40 border border-white/30 text-white font-bold text-xs hover:bg-sky-900/60 transition">Sao chép SALE20</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout 2 cột: Bộ lọc trái + Lưới sản phẩm phải -->
+      <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Nút mở bộ lọc trên Mobile -->
+        <div class="lg:hidden flex items-center justify-between">
+          <button onclick="toggleMobileFilter()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm">
+            <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+            Bộ lọc tìm kiếm
+          </button>
+          <span id="mobile-product-count" class="text-xs text-slate-500 font-medium"></span>
+        </div>
+
+        <!-- Sidebar Bộ lọc (UC02) -->
+        <aside id="filter-sidebar" class="hidden lg:block w-full lg:w-64 shrink-0">
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm sticky top-24">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                BỘ LỌC TÌM KIẾM
+              </h2>
+              <button onclick="resetFilters()" class="text-xs font-semibold text-sky-600 hover:underline">Đặt lại</button>
+            </div>
+
+            <!-- Danh mục -->
+            <div class="mt-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">Danh mục</h3>
+              <div id="filter-category-list" class="space-y-1.5 text-sm"></div>
+            </div>
+
+            <!-- Khoảng giá -->
+            <div class="mt-5 pt-4 border-t border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">Khoảng giá (VNĐ)</h3>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="filter-min-price" type="number" min="0" step="50000" placeholder="Từ" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-sky-500" />
+                <input id="filter-max-price" type="number" min="0" step="50000" placeholder="Đến" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-sky-500" />
+              </div>
+            </div>
+
+            <!-- Số sao tối thiểu -->
+            <div class="mt-5 pt-4 border-t border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">Số sao tối thiểu</h3>
+              <div class="space-y-1.5 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-50">
+                  <input type="radio" name="filter-rating" value="0" checked class="text-emerald-600 focus:ring-emerald-500" />
+                  <span class="text-slate-700 font-medium">Tất cả đánh giá</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-50">
+                  <input type="radio" name="filter-rating" value="4" class="text-emerald-600 focus:ring-emerald-500" />
+                  <span class="text-amber-400">★★★★☆</span>
+                  <span class="text-slate-700">Từ 4 sao</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-50">
+                  <input type="radio" name="filter-rating" value="3" class="text-emerald-600 focus:ring-emerald-500" />
+                  <span class="text-amber-400">★★★☆☆</span>
+                  <span class="text-slate-700">Từ 3 sao</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-slate-100 flex gap-2">
+              <button onclick="applyFilters()" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white text-xs font-bold shadow-sm hover:opacity-95 transition">Áp dụng lọc</button>
+              <button onclick="resetFilters()" class="px-3 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition">Đặt lại</button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Lưới sản phẩm -->
+        <section class="flex-1 min-w-0">
+          <div class="bg-white rounded-2xl border border-slate-200 px-4 py-3 mb-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-semibold text-slate-500 mr-1">Sắp xếp:</span>
+              <button onclick="setSort('popular')" data-sort="popular" class="sort-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition">Phổ biến</button>
+              <button onclick="setSort('newest')" data-sort="newest" class="sort-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition">Mới nhất</button>
+              <button onclick="setSort('price-asc')" data-sort="price-asc" class="sort-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition">Giá thấp → cao</button>
+              <button onclick="setSort('price-desc')" data-sort="price-desc" class="sort-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition">Giá cao → thấp</button>
+            </div>
+            <span id="desktop-product-count" class="hidden lg:inline text-xs font-medium text-slate-500"></span>
+          </div>
+
+          <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Footer Trang Khách hàng (Đặt link tinh tế sang Cổng Quản lý #admin) -->
+    <footer class="mt-auto bg-white border-t border-slate-200 py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div>
+          <p><strong class="text-emerald-600">NPK-SHOP</strong> — Hệ thống Thương mại Điện tử &amp; Quản lý Bán hàng</p>
+          <p class="mt-0.5 text-slate-400">Hỗ trợ khách hàng 24/7 • Giao hàng toàn quốc • Bảo hành chính hãng</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="#admin" onclick="navigateTo('#admin'); return false;" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 text-slate-600 hover:text-sky-700 border border-slate-200 hover:border-sky-200 font-semibold transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Cổng Quản lý dành cho Nhân viên / Admin
+          </a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PHẦN 2: CỔNG ĐĂNG NHẬP QUẢN LÝ RIÊNG BIỆT (ADMIN LOGIN GATE - #admin)      -->
+  <!-- ========================================================================= -->
+  <div id="admin-gate-shell" class="hidden flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-emerald-950 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200/20 animate-fade-scale">
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-sky-500/25 mb-3">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <span class="inline-block px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold uppercase tracking-wider">Khu vực nội bộ</span>
+        <h1 class="text-xl font-extrabold text-slate-900 mt-2">Cổng Quản lý NPK-SHOP</h1>
+        <p class="text-xs text-slate-500 mt-1">Chỉ dành cho tài khoản <strong>Nhân viên</strong> hoặc <strong>Quản trị viên</strong>.</p>
+      </div>
+
+      <!-- Cảnh báo nếu đang đăng nhập bằng tài khoản Khách hàng -->
+      <div id="admin-gate-warning" class="hidden mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800"></div>
+
+      <form onsubmit="handleAdminGateLogin(event)" class="space-y-3.5 text-sm">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Email / Tài khoản nội bộ *</label>
+          <input id="gate-email" type="email" required placeholder="nhanvien@eshop.vn hoặc admin@eshop.vn" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-sky-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Mật khẩu *</label>
+          <input id="gate-password" type="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-sky-500" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-lg shadow-sky-600/20 transition">
+          ĐĂNG NHẬP CỔNG QUẢN LÝ
+        </button>
+      </form>
+
+      <!-- Điền nhanh tài khoản Demo -->
+      <div class="mt-5 pt-4 border-t border-slate-100">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-2.5">Điền nhanh tài khoản Demo (Mật khẩu: 123456)</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="fillAdminGateDemo('nhanvien@eshop.vn')" class="py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-xs font-bold transition">
+            Nhân viên (Staff)
+          </button>
+          <button type="button" onclick="fillAdminGateDemo('admin@eshop.vn')" class="py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold transition">
+            Quản trị viên (Admin)
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5 text-center">
+        <a href="#shop" onclick="navigateTo('#shop'); return false;" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-sky-600 transition">
+          ← Quay lại Trang Bán hàng (Khách hàng)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PHẦN 3: KHÔNG GIAN TRANG QUẢN LÝ (ADMIN / STAFF PORTAL - #admin)          -->
+  <!-- ========================================================================= -->
+  <div id="admin-shell" class="hidden flex-1 min-h-screen flex flex-col lg:flex-row bg-slate-100">
+    <!-- Sidebar tối màu xanh biển đậm / xanh ngọc -->
+    <aside class="w-full lg:w-68 lg:w-72 shrink-0 bg-gradient-to-b from-slate-900 via-sky-950 to-teal-950 text-white flex flex-col">
+      <div class="p-5 border-b border-white/10 flex items-center justify-between lg:block">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-sky-500 flex items-center justify-center font-extrabold text-slate-950 shadow">ES</div>
+          <div>
+            <p class="text-sm font-extrabold tracking-wide">E-SHOP PORTAL</p>
+            <p id="admin-role-badge" class="text-[11px] font-semibold text-emerald-300"></p>
+          </div>
+        </div>
+        <button onclick="toggleAdminMobileMenu()" class="lg:hidden p-2 rounded-lg bg-white/10 text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+
+      <div id="admin-sidebar-menu" class="hidden lg:flex flex-col flex-1 p-4 justify-between gap-6">
+        <nav id="admin-nav-list" class="space-y-1.5">
+          <!-- Render động theo phân quyền RBAC -->
+        </nav>
+
+        <div class="space-y-2 pt-4 border-t border-white/10">
+          <a href="#shop" onclick="navigateTo('#shop'); return false;" class="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-sky-100 flex items-center justify-center gap-2 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            Mở trang bán hàng
+          </a>
+          <button onclick="confirmResetDemo()" class="w-full py-2 px-3.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-white/10 flex items-center justify-center gap-2 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Khôi phục dữ liệu mẫu
+          </button>
+          <button onclick="logoutAdmin()" class="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/20 flex items-center justify-center gap-2 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Khu vực nội dung chính Admin Portal -->
+    <div class="flex-1 min-w-0 flex flex-col">
+      <!-- Header Quản trị -->
+      <header class="bg-white border-b border-slate-200 px-5 sm:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 id="admin-page-title" class="text-lg font-extrabold text-slate-800">Bảng điều khiển Quản trị</h1>
+          <p id="admin-page-subtitle" class="text-xs text-slate-500">Quản lý vận hành đồng bộ thời gian thực với Cửa hàng</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <p id="admin-user-name" class="text-xs font-bold text-slate-800"></p>
+            <p id="admin-user-email" class="text-[11px] text-slate-500"></p>
+          </div>
+          <a href="#shop" onclick="navigateTo('#shop'); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition">
+            Mở trang bán hàng
+          </a>
+          <button onclick="logoutAdmin()" class="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition">
+            Đăng xuất
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-1 p-5 sm:p-8 space-y-6">
+        <!-- 4 Thẻ KPI Tổng quan -->
+        <div id="admin-kpi-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+        <!-- TAB 1: XỬ LÝ & DUYỆT ĐƠN HÀNG (UC05 - NHAN_VIEN + ADMIN) -->
+        <section id="admin-tab-orders" class="admin-tab-panel bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-800">Xử lý &amp; Duyệt Đơn hàng (UC05)</h2>
+              <p class="text-xs text-slate-500">Duyệt đơn sinh mã vận đơn tự động hoặc hủy đơn để hoàn trả số lượng tồn kho.</p>
+            </div>
+            <select id="admin-order-filter" onchange="renderAdminOrders()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500">
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="CHO_XAC_NHAN">Chờ xác nhận</option>
+              <option value="DA_THANH_TOAN">Đã thanh toán</option>
+              <option value="DANG_GIAO">Đang giao hàng</option>
+              <option value="HOAN_THANH">Hoàn thành</option>
+              <option value="DA_HUY">Đã hủy</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th class="py-3 px-3 rounded-tl-xl">Mã Đơn</th>
+                  <th class="py-3 px-3">Khách hàng &amp; Chi tiết</th>
+                  <th class="py-3 px-3">Thanh toán / Ship</th>
+                  <th class="py-3 px-3">Trạng thái</th>
+                  <th class="py-3 px-3">Mã vận đơn</th>
+                  <th class="py-3 px-3 text-right rounded-tr-xl">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-orders-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 2: QUẢN LÝ SẢN PHẨM & TỒN KHO (UC06 - NHAN_VIEN + ADMIN) -->
+        <section id="admin-tab-inventory" class="hidden admin-tab-panel bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-800">Quản lý Sản phẩm &amp; Tồn kho (UC06)</h2>
+              <p class="text-xs text-slate-500">Cảnh báo tồn kho thấp (&le; 10 sản phẩm). Mọi cập nhật hiển thị ngay trên Cửa hàng.</p>
+            </div>
+            <button onclick="openProductFormModal()" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:opacity-95 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Thêm sản phẩm mới
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th class="py-3 px-3 rounded-tl-xl">Mã SKU / Tên sản phẩm</th>
+                  <th class="py-3 px-3">Danh mục</th>
+                  <th class="py-3 px-3">Giá bán</th>
+                  <th class="py-3 px-3">Tồn kho</th>
+                  <th class="py-3 px-3">Trạng thái</th>
+                  <th class="py-3 px-3 text-right rounded-tr-xl">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-inventory-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 3: BÁO CÁO & THỐNG KÊ (UC07 - CHỈ ADMIN) -->
+        <section id="admin-tab-reports" class="hidden admin-tab-panel space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-800">Báo cáo &amp; Thống kê Doanh thu (UC07)</h2>
+                <p class="text-xs text-slate-500">Biểu đồ trực quan theo kỳ và xuất báo cáo CSV chuẩn UTF-8 BOM cho Excel.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="report-period" onchange="renderAdminReports()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500">
+                  <option value="7days">7 ngày qua</option>
+                  <option value="month" selected>Tháng này</option>
+                  <option value="quarter">Quý này</option>
+                </select>
+                <button onclick="exportCSVReport()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 shadow-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  Xuất báo cáo CSV
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Biểu đồ Cột Doanh thu</h3>
+              <div id="revenue-chart-container" class="bg-slate-50 border border-slate-100 rounded-2xl p-4 h-64 flex items-end gap-3 overflow-x-auto"></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 class="text-sm font-extrabold text-slate-800 mb-4">Tỷ lệ Trạng thái Đơn hàng</h3>
+              <div id="order-status-breakdown" class="space-y-3"></div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 class="text-sm font-extrabold text-slate-800 mb-4">Top Sản phẩm Bán chạy</h3>
+              <div id="top-products-list" class="space-y-3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: QUẢN LÝ VOUCHER (CHỈ ADMIN) -->
+        <section id="admin-tab-vouchers" class="hidden admin-tab-panel bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-800">Quản lý Mã giảm giá (Voucher)</h2>
+              <p class="text-xs text-slate-500">Thêm hoặc tắt mã khuyến mãi dùng tại màn hình Thanh toán của Khách hàng.</p>
+            </div>
+          </div>
+
+          <form onsubmit="addVoucher(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+            <input id="v-code" type="text" placeholder="Mã Code (VD: TET2026)" required class="px-3 py-2 bg-white border border-slate-200 rounded-xl uppercase font-mono font-bold" />
+            <select id="v-type" class="px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold">
+              <option value="fixed">Giảm tiền cố định (đ)</option>
+              <option value="percent">Giảm theo phần trăm (%)</option>
+            </select>
+            <input id="v-value" type="number" min="1" placeholder="Giá trị giảm" required class="px-3 py-2 bg-white border border-slate-200 rounded-xl" />
+            <input id="v-max" type="number" min="0" placeholder="Giảm tối đa (đ)" required class="px-3 py-2 bg-white border border-slate-200 rounded-xl" />
+            <button type="submit" class="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-bold">+ Thêm Voucher</button>
+          </form>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th class="py-3 px-3">Mã Code</th>
+                  <th class="py-3 px-3">Loại giảm</th>
+                  <th class="py-3 px-3">Mức giảm / Tối đa</th>
+                  <th class="py-3 px-3">Mô tả</th>
+                  <th class="py-3 px-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-vouchers-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 5: QUẢN LÝ TÀI KHOẢN (CHỈ ADMIN) -->
+        <section id="admin-tab-accounts" class="hidden admin-tab-panel bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="mb-4">
+            <h2 class="text-base font-extrabold text-slate-800">Quản lý Tài khoản &amp; Phân quyền (RBAC)</h2>
+            <p class="text-xs text-slate-500">Quản lý danh sách Khách hàng, Nhân viên, Quản trị viên và trạng thái khóa/mở tài khoản.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th class="py-3 px-3">Họ tên / Email</th>
+                  <th class="py-3 px-3">Số điện thoại</th>
+                  <th class="py-3 px-3">Vai trò</th>
+                  <th class="py-3 px-3">Trạng thái</th>
+                  <th class="py-3 px-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-accounts-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- CÁC MODAL & DRAWER DÙNG CHUNG                                             -->
+  <!-- ========================================================================= -->
+
+  <!-- DRAWER GIỎ HÀNG (UC03) -->
+  <div id="cart-drawer-overlay" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+    <div class="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-right">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-sky-50">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          <h2 class="text-base font-extrabold text-slate-800">Giỏ hàng của bạn</h2>
+        </div>
+        <button onclick="closeCartDrawer()" class="p-1.5 rounded-lg text-slate-500 hover:bg-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="cart-items-container" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
+
+      <div class="p-5 border-t border-slate-200 bg-slate-50 space-y-3">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-600 font-medium">Tạm tính:</span>
+          <span id="cart-subtotal" class="text-lg font-extrabold text-emerald-600">0 đ</span>
+        </div>
+        <button id="proceed-checkout-btn" onclick="handleProceedToCheckout()" class="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-md shadow-sky-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+          TIẾN HÀNH ĐẶT HÀNG / THANH TOÁN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CHI TIẾT SẢN PHẨM & ĐÁNH GIÁ (UC02) -->
+  <div id="product-detail-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-scale">
+      <div id="product-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL ĐẶT HÀNG & THANH TOÁN - CHECKOUT (UC04) -->
+  <div id="checkout-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto shadow-2xl animate-fade-scale">
+      <div class="sticky top-0 z-10 bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-extrabold bg-gradient-to-r from-emerald-600 to-sky-600 bg-clip-text text-transparent">THANH TOÁN ĐƠN HÀNG (UC04)</h2>
+        <button onclick="closeModal('checkout-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 space-y-5">
+          <!-- 1. Thông tin nhận hàng -->
+          <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/60">
+            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">1</span>
+              Địa chỉ nhận hàng
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Họ và tên người nhận *</label>
+                <input id="chk-name" type="text" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại *</label>
+                <input id="chk-phone" type="text" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-500" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Địa chỉ giao hàng chi tiết *</label>
+                <input id="chk-address" type="text" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-500" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Sản phẩm đặt mua -->
+          <div class="p-4 rounded-2xl border border-slate-200">
+            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">2</span>
+              Sản phẩm trong đơn
+            </h3>
+            <div id="chk-items-list" class="divide-y divide-slate-100 max-h-44 overflow-y-auto pr-1"></div>
+          </div>
+
+          <!-- 3. Đơn vị vận chuyển -->
+          <div class="p-4 rounded-2xl border border-slate-200">
+            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-xs">3</span>
+              Đơn vị vận chuyển
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <label class="cursor-pointer border rounded-xl p-3 flex flex-col gap-1 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50/70 transition">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-800">Giao Hàng Nhanh</span>
+                  <input type="radio" name="chk-shipping" value="Giao Hàng Nhanh" data-fee="30000" checked onchange="updateCheckoutSummary()" class="text-sky-600" />
+                </div>
+                <span class="text-sky-700 font-bold">30.000 đ</span>
+                <span class="text-[11px] text-slate-500">Giao tiêu chuẩn 1–2 ngày</span>
+              </label>
+              <label class="cursor-pointer border rounded-xl p-3 flex flex-col gap-1 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50/70 transition">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-800">Giao Hàng Tiết Kiệm</span>
+                  <input type="radio" name="chk-shipping" value="Giao Hàng Tiết Kiệm" data-fee="25000" onchange="updateCheckoutSummary()" class="text-sky-600" />
+                </div>
+                <span class="text-sky-700 font-bold">25.000 đ</span>
+                <span class="text-[11px] text-slate-500">Giao tiết kiệm 2–4 ngày</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. Phương thức thanh toán -->
+          <div class="p-4 rounded-2xl border border-slate-200">
+            <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-xs">4</span>
+              Phương thức thanh toán
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/70">
+                <input type="radio" name="chk-payment" value="COD" checked class="text-emerald-600" />
+                <span class="font-bold text-slate-800">Tiền mặt (COD)</span>
+              </label>
+              <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/70">
+                <input type="radio" name="chk-payment" value="VNPAY" class="text-emerald-600" />
+                <span class="font-bold text-sky-700">VNPay QR</span>
+              </label>
+              <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/70">
+                <input type="radio" name="chk-payment" value="MOMO" class="text-emerald-600" />
+                <span class="font-bold text-pink-600">Ví MoMo</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cột phải: Voucher & Tóm tắt -->
+        <div class="lg:col-span-5">
+          <div class="p-5 rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white sticky top-20 space-y-4">
+            <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-wide">Tóm tắt đơn hàng</h3>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">Mã giảm giá (Voucher)</label>
+              <div class="flex gap-2">
+                <input id="chk-voucher-input" type="text" placeholder="Nhập mã VD: GIAM100K" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm uppercase font-mono focus:outline-none focus:border-sky-500" />
+                <button onclick="applyVoucher()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition">Áp dụng</button>
+              </div>
+              <div id="voucher-feedback" class="text-xs mt-1.5 min-h-[16px]"></div>
+              <div id="checkout-voucher-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-4 space-y-2.5 text-sm">
+              <div class="flex justify-between text-slate-600">
+                <span>Tạm tính tiền hàng:</span>
+                <span id="chk-subtotal" class="font-semibold text-slate-800">0 đ</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>Phí vận chuyển:</span>
+                <span id="chk-ship-fee" class="font-semibold text-slate-800">30.000 đ</span>
+              </div>
+              <div class="flex justify-between text-emerald-600">
+                <span>Giảm giá Voucher:</span>
+                <span id="chk-discount" class="font-semibold">- 0 đ</span>
+              </div>
+              <div class="border-t border-slate-200 pt-3 flex justify-between items-center">
+                <span class="font-bold text-slate-800">TỔNG THANH TOÁN:</span>
+                <span id="chk-total" class="text-xl font-extrabold text-rose-600">0 đ</span>
+              </div>
+            </div>
+
+            <button onclick="submitOrder()" class="w-full py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-lg shadow-emerald-500/20 transition">
+              XÁC NHẬN ĐẶT HÀNG
+            </button>
+            <p class="text-[11px] text-slate-400 text-center">Hệ thống kiểm tra &amp; trừ tồn kho tự động khi giao dịch thành công.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CỔNG THANH TOÁN QR MÔ PHỎNG (UC04) -->
+  <div id="qr-payment-modal" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-scale text-center">
+      <div class="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 mx-auto flex items-center justify-center mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-800">Cổng Thanh toán Trực tuyến</h3>
+      <p id="qr-method-label" class="text-xs font-bold text-sky-600 mt-1"></p>
+      <p id="qr-amount-label" class="text-2xl font-extrabold text-rose-600 mt-2"></p>
+
+      <div class="my-4 p-4 bg-slate-50 border-2 border-dashed border-sky-300 rounded-2xl inline-block">
+        <svg class="w-40 h-40 mx-auto text-slate-800" viewBox="0 0 100 100" fill="currentColor">
+          <rect x="5" y="5" width="25" height="25" fill="none" stroke="currentColor" stroke-width="5"/>
+          <rect x="12" y="12" width="11" height="11"/>
+          <rect x="70" y="5" width="25" height="25" fill="none" stroke="currentColor" stroke-width="5"/>
+          <rect x="77" y="12" width="11" height="11"/>
+          <rect x="5" y="70" width="25" height="25" fill="none" stroke="currentColor" stroke-width="5"/>
+          <rect x="12" y="77" width="11" height="11"/>
+          <path d="M40 10h10v10H40zm15 15h10v10H55zM40 35h15v10H40zm25 10h25v10H65zM10 45h20v10H10zm30 15h15v15H40zm25 5h10v25H65zm15 10h10v15H80zM45 80h15v10H45z"/>
+        </svg>
+        <p class="text-[11px] text-slate-500 mt-2">Quét mã bằng ứng dụng ngân hàng hoặc ví điện tử</p>
+      </div>
+
+      <div class="space-y-2.5">
+        <button onclick="completeOnlinePayment(true)" class="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:opacity-95 shadow-md">
+          ✓ Xác nhận thanh toán thành công
+        </button>
+        <button onclick="completeOnlinePayment(false)" class="w-full py-2.5 rounded-xl font-semibold text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+          ✕ Giả lập thanh toán thất bại (Kiểm thử ngoại lệ)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ĐĂNG NHẬP / ĐĂNG KÝ / QUÊN MẬT KHẨU / OTP (UC01) -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-scale relative">
+      <button onclick="closeModal('auth-modal')" class="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <div id="auth-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL ĐƠN HÀNG CỦA TÔI (KHÁCH HÀNG) -->
+  <div id="my-orders-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[88vh] overflow-y-auto shadow-2xl animate-fade-scale">
+      <div class="sticky top-0 bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-extrabold text-slate-800">Đơn hàng của tôi &amp; Tra cứu Vận đơn</h2>
+        <button onclick="closeModal('my-orders-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="my-orders-list" class="p-6 space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- MODAL THÊM / SỬA SẢN PHẨM ADMIN (UC06) -->
+  <div id="product-form-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-fade-scale">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="product-form-title" class="text-base font-extrabold text-slate-800">Thêm sản phẩm mới</h3>
+        <button onclick="closeModal('product-form-modal')" class="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form onsubmit="saveProductForm(event)" class="space-y-3.5 text-sm">
+        <input type="hidden" id="pf-id" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tên sản phẩm *</label>
+            <input id="pf-name" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Mã SKU *</label>
+            <input id="pf-sku" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-xl uppercase font-mono focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Danh mục *</label>
+            <select id="pf-category" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-sky-500">
+              <option value="Âm thanh &amp; Thiết bị đeo">Âm thanh &amp; Thiết bị đeo</option>
+              <option value="Phụ kiện Máy tính">Phụ kiện Máy tính</option>
+              <option value="Balo &amp; Tiện ích">Balo &amp; Tiện ích</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Giá bán (VNĐ) *</label>
+            <input id="pf-price" type="number" min="1000" step="1000" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tồn kho *</label>
+            <input id="pf-stock" type="number" min="0" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Biểu tượng SVG minh họa</label>
+          <select id="pf-icon" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-sky-500">
+            <option value="headphone">Tai nghe Chống ồn</option>
+            <option value="keyboard">Bàn phím cơ</option>
+            <option value="mouse">Chuột công thái học</option>
+            <option value="watch">Đồng hồ thông minh</option>
+            <option value="backpack">Balo laptop</option>
+            <option value="monitor">Màn hình đồ họa</option>
+            <option value="speaker">Loa Bluetooth</option>
+            <option value="stand">Giá đỡ laptop</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Mô tả chi tiết *</label>
+          <textarea id="pf-desc" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('product-form-modal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs hover:bg-slate-200">Hủy</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-bold text-xs shadow-sm hover:opacity-95">Lưu thông tin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL XÁC NHẬN TÙY CHỈNH (THAY THẾ NATIVE CONFIRM) -->
+  <div id="confirm-modal" class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-scale">
+      <h3 id="confirm-title" class="text-base font-extrabold text-slate-800">Xác nhận thao tác</h3>
+      <p id="confirm-message" class="text-sm text-slate-600 mt-2"></p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button onclick="closeModal('confirm-modal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs hover:bg-slate-200">Đóng</button>
+        <button id="confirm-ok-btn" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 shadow-sm">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PHẦN 4: LOGIC ỨNG DỤNG JAVASCRIPT                                         -->
+  <!-- ========================================================================= -->
+  <script>
+    const STORAGE_KEY = 'eshop_online_state_v2';
+
+    /**
+     * Khởi tạo trạng thái mặc định:
+     * - currentUser = null (Chưa đăng nhập mặc định khi mở web)
+     * - Đồng bộ sản phẩm, đánh giá, voucher, đơn hàng, tài khoản qua localStorage
+     */
+    function getDefaultState() {
+      return {
+        currentUser: null,
+        adminTab: 'orders',
+        accounts: [
+          {
+            id: 1,
+            ho_ten: 'Nguyễn Hữu Nghĩa',
+            email: 'khachhang@eshop.vn',
+            password: '123456',
+            so_dien_thoai: '0987654321',
+            dia_chi: '123 Đường Nguyễn Văn Cừ, Phường 4, Quận 5, TP. Hồ Chí Minh',
+            vai_tro: 'KHACH_HANG',
+            hang_thanh_vien: 'Hạng Kim Cương',
+            trang_thai: true
+          },
+          {
+            id: 2,
+            ho_ten: 'Trần Quang Khải (NV Kho)',
+            email: 'nhanvien@eshop.vn',
+            password: '123456',
+            so_dien_thoai: '0897654321',
+            dia_chi: 'Kho Trung tâm E-SHOP, Quận 7, TP.HCM',
+            vai_tro: 'NHAN_VIEN',
+            hang_thanh_vien: 'Nhân viên Vận hành',
+            trang_thai: true
+          },
+          {
+            id: 3,
+            ho_ten: 'Đặng Hồng Phúc',
+            email: 'admin@eshop.vn',
+            password: '123456',
+            so_dien_thoai: '0789654321',
+            dia_chi: 'Trụ sở chính E-SHOP, Quận 1, TP.HCM',
+            vai_tro: 'ADMIN',
+            hang_thanh_vien: 'Quản trị viên Hệ thống',
+            trang_thai: true
+          }
+        ],
+        categories: [
+          'Tất cả',
+          'Âm thanh & Thiết bị đeo',
+          'Phụ kiện Máy tính',
+          'Balo & Tiện ích'
+        ],
+        products: [
+          {
+            id: 1,
+            sku: 'HP-ANC-01',
+            name: 'Tai nghe Bluetooth Chống ồn Pro ANC',
+            category: 'Âm thanh & Thiết bị đeo',
+            price: 1290000,
+            stock: 42,
+            sold: 145,
+            icon: 'headphone',
+            specs: 'Chống ồn chủ động 42dB • Bluetooth 5.3 • Pin 36 giờ',
+            desc: 'Âm thanh Hi-Res cân bằng, đệm tai protein siêu êm, hỗ trợ kết nối đa điểm mượt mà.'
+          },
+          {
+            id: 2,
+            sku: 'KB-MECH-87',
+            name: 'Bàn phím cơ Không dây RGB 87 phím',
+            category: 'Phụ kiện Máy tính',
+            price: 1850000,
+            stock: 8,
+            sold: 74,
+            icon: 'keyboard',
+            specs: '3 chế độ kết nối • Switch Linear Hot-swap • Keycap PBT',
+            desc: 'Cảm giác gõ đầm tay, chống ồn tốt cho văn phòng, pin 4000mAh dùng liên tục nhiều tuần.'
+          },
+          {
+            id: 3,
+            sku: 'MS-ERGO-02',
+            name: 'Chuột công thái học Silent Wireless',
+            category: 'Phụ kiện Máy tính',
+            price: 790000,
+            stock: 26,
+            sold: 112,
+            icon: 'mouse',
+            specs: 'DPI 4000 • Click giảm ồn 90% • Sạc nhanh Type-C',
+            desc: 'Thiết kế nâng góc 57 độ giúp giảm mỏi cổ tay tối đa khi làm việc cường độ cao.'
+          },
+          {
+            id: 4,
+            sku: 'WT-FIT-S9',
+            name: 'Đồng hồ thông minh Emerald Watch S9',
+            category: 'Âm thanh & Thiết bị đeo',
+            price: 3290000,
+            stock: 6,
+            sold: 53,
+            icon: 'watch',
+            specs: 'Màn AMOLED 1.43" • Đo SpO2 & Nhịp tim • Chống nước 5ATM',
+            desc: 'Theo dõi sức khỏe chuyên sâu, GPS độc lập và thời lượng pin lên đến 10 ngày.'
+          },
+          {
+            id: 5,
+            sku: 'BL-ECO-15',
+            name: 'Balo Laptop 15.6" Chống sốc EcoTech',
+            category: 'Balo & Tiện ích',
+            price: 890000,
+            stock: 19,
+            sold: 88,
+            icon: 'backpack',
+            specs: 'Chống thấm nước • Ngăn chống sốc 360° • Cổng sạc USB ngoài',
+            desc: 'Chất liệu vải tái chế thân thiện môi trường, phân ngăn khoa học cho laptop và phụ kiện.'
+          },
+          {
+            id: 6,
+            sku: 'MN-UHD-27',
+            name: 'Màn hình Đồ họa OceanView 27" 4K IPS',
+            category: 'Phụ kiện Máy tính',
+            price: 7490000,
+            stock: 9,
+            sold: 31,
+            icon: 'monitor',
+            specs: '4K UHD 3840x2160 • 99% sRGB • USB-C PD 65W',
+            desc: 'Hiển thị màu sắc chuẩn xác cho thiết kế và lập trình, chân đế công thái học xoay dọc linh hoạt.'
+          },
+          {
+            id: 7,
+            sku: 'SP-BASS-360',
+            name: 'Loa Bluetooth Di động AquaSound 360',
+            category: 'Âm thanh & Thiết bị đeo',
+            price: 1590000,
+            stock: 22,
+            sold: 67,
+            icon: 'speaker',
+            specs: 'Công suất 30W • Kháng nước IPX7 • Pin 18 giờ',
+            desc: 'Âm thanh vòm 360 độ mạnh mẽ, thiết kế gọn nhẹ chống nước phù hợp cả trong nhà lẫn dã ngoại.'
+          },
+          {
+            id: 8,
+            sku: 'ST-ALU-PRO',
+            name: 'Giá đỡ Laptop Nhôm nguyên khối Xoay 360',
+            category: 'Balo & Tiện ích',
+            price: 450000,
+            stock: 0,
+            sold: 109,
+            icon: 'stand',
+            specs: 'Hợp kim nhôm CNC • Chịu tải 10kg • Tản nhiệt thoáng khí',
+            desc: 'Điều chỉnh độ cao chuẩn tầm mắt, bảo vệ cột sống cổ và tăng hiệu quả tản nhiệt cho laptop.'
+          }
+        ],
+        reviews: [
+          { id: 1, productId: 1, userName: 'Trần Minh Quân', rating: 5, comment: 'Chống ồn rất tốt, đeo lâu không đau tai, giao hàng siêu nhanh.', date: '08/11/2026' },
+          { id: 2, productId: 2, userName: 'Lê Thu Hà', rating: 5, comment: 'Phím gõ êm, kết nối không dây ổn định cả Mac lẫn Windows.', date: '09/11/2026' },
+          { id: 3, productId: 3, userName: 'Phạm Hoàng Nam', rating: 4, comment: 'Chuột cầm vừa tay, click im ru rất thích.', date: '07/11/2026' },
+          { id: 4, productId: 4, userName: 'Nguyễn Thảo Vy', rating: 5, comment: 'Màn hình sắc nét, pin trâu dùng hơn tuần mới phải sạc.', date: '09/11/2026' },
+          { id: 5, productId: 6, userName: 'Đặng Quốc Bảo', rating: 5, comment: 'Màn 4K nét căng, cắm dây Type-C vừa xuất hình vừa sạc laptop quá tiện.', date: '06/11/2026' },
+          { id: 6, productId: 7, userName: 'Vũ Ngọc Ánh', rating: 4, comment: 'Bass ấm, mang đi cắm trại nghe rất đã.', date: '05/11/2026' }
+        ],
+        vouchers: [
+          { code: 'GIAM100K', type: 'fixed', value: 100000, maxDiscount: 100000, minOrder: 300000, desc: 'Giảm 100.000đ cho đơn từ 300.000đ' },
+          { code: 'SALE20', type: 'percent', value: 20, maxDiscount: 300000, minOrder: 0, desc: 'Giảm 20%, tối đa 300.000đ' }
+        ],
+        cart: [],
+        orders: [
+          {
+            id: 'DH1042',
+            userId: 1,
+            customerName: 'Nguyễn Hữu Nghĩa',
+            phone: '0987654321',
+            address: '123 Đường Nguyễn Văn Cừ, P.4, Q.5, TP.HCM',
+            date: '10/11/2026 09:15',
+            items: [
+              { productId: 1, name: 'Tai nghe Bluetooth Chống ồn Pro ANC', qty: 1, price: 1290000 },
+              { productId: 3, name: 'Chuột công thái học Silent Wireless', qty: 1, price: 790000 }
+            ],
+            shippingPartner: 'Giao Hàng Nhanh',
+            shippingFee: 30000,
+            discount: 100000,
+            totalAmount: 2010000,
+            paymentMethod: 'VNPAY',
+            status: 'DA_THANH_TOAN',
+            trackingCode: ''
+          },
+          {
+            id: 'DH1041',
+            userId: 1,
+            customerName: 'Nguyễn Hữu Nghĩa',
+            phone: '0987654321',
+            address: '123 Đường Nguyễn Văn Cừ, P.4, Q.5, TP.HCM',
+            date: '10/11/2026 08:30',
+            items: [
+              { productId: 5, name: 'Balo Laptop 15.6" Chống sốc EcoTech', qty: 1, price: 890000 }
+            ],
+            shippingPartner: 'Giao Hàng Tiết Kiệm',
+            shippingFee: 25000,
+            discount: 0,
+            totalAmount: 915000,
+            paymentMethod: 'COD',
+            status: 'CHO_XAC_NHAN',
+            trackingCode: ''
+          },
+          {
+            id: 'DH1040',
+            userId: 99,
+            customerName: 'Hà Quang Việt',
+            phone: '0987654321',
+            address: '88 Cầu Giấy, Hà Nội',
+            date: '09/11/2026 16:40',
+            items: [
+              { productId: 4, name: 'Đồng hồ thông minh Emerald Watch S9', qty: 1, price: 3290000 }
+            ],
+            shippingPartner: 'Giao Hàng Nhanh',
+            shippingFee: 30000,
+            discount: 0,
+            totalAmount: 3320000,
+            paymentMethod: 'MOMO',
+            status: 'DANG_GIAO',
+            trackingCode: 'GHN839201'
+          },
+          {
+            id: 'DH1039',
+            userId: 99,
+            customerName: 'Đào Minh Thiện',
+            phone: '0903445566',
+            address: '12 Bạch Đằng, Hải Châu, Đà Nẵng',
+            date: '08/11/2026 14:20',
+            items: [
+              { productId: 6, name: 'Màn hình Đồ họa OceanView 27" 4K IPS', qty: 1, price: 7490000 }
+            ],
+            shippingPartner: 'Giao Hàng Nhanh',
+            shippingFee: 30000,
+            discount: 300000,
+            totalAmount: 7220000,
+            paymentMethod: 'VNPAY',
+            status: 'HOAN_THANH',
+            trackingCode: 'GHN551209'
+          }
+        ]
+      };
+    }
+
+    let state = loadState();
+    let filterState = {
+      keyword: '',
+      category: 'Tất cả',
+      minPrice: '',
+      maxPrice: '',
+      minRating: 0,
+      sortBy: 'popular'
+    };
+    let appliedVoucher = null;
+    let pendingOnlineOrder = null;
+    let authModalMode = 'login'; // 'login' | 'register' | 'forgot'
+    let pendingRegData = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {
+        console.error('Lỗi đọc localStorage:', e);
+      }
+      const def = getDefaultState();
+      saveState(def);
+      return def;
+    }
+
+    function saveState(customState = state) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
+      } catch (e) {
+        console.error('Lỗi lưu localStorage:', e);
+      }
+    }
+
+    // Đồng bộ dữ liệu tức thì nếu người dùng mở 2 tab (#shop và #admin) cùng lúc
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        state = JSON.parse(e.newValue);
+        renderCurrentRoute();
+      }
+    });
+
+    function formatVND(amount) {
+      return Number(amount || 0).toLocaleString('vi-VN') + ' đ';
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-700',
+        error: 'bg-rose-600 text-white border-rose-700',
+        warning: 'bg-amber-500 text-white border-amber-600',
+        info: 'bg-sky-600 text-white border-sky-700'
+      };
+      const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg text-xs sm:text-sm font-semibold animate-slide-right ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs">${icons[type] || 'ℹ'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 3400);
+    }
+
+    function openConfirmModal(title, message, onConfirm, confirmBtnClass = 'bg-rose-600 hover:bg-rose-700') {
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+      const btn = document.getElementById('confirm-ok-btn');
+      btn.className = `px-4 py-2 rounded-xl text-white font-bold text-xs shadow-sm ${confirmBtnClass}`;
+      btn.onclick = () => {
+        closeModal('confirm-modal');
+        if (typeof onConfirm === 'function') onConfirm();
+      };
+      document.getElementById('confirm-modal').classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // ================= ĐỊNH TUYẾN HASH RIÊNG BIỆT (#shop vs #admin) =================
+    function navigateTo(hash) {
+      window.location.hash = hash;
+      renderCurrentRoute();
+    }
+
+    function renderCurrentRoute() {
+      const hash = window.location.hash || '#shop';
+      const shopShell = document.getElementById('shop-shell');
+      const gateShell = document.getElementById('admin-gate-shell');
+      const adminShell = document.getElementById('admin-shell');
+
+      shopShell.classList.add('hidden');
+      gateShell.classList.add('hidden');
+      adminShell.classList.add('hidden');
+
+      if (hash.startsWith('#admin')) {
+        // Kiểm tra điều kiện vào Cổng Quản lý: Phải đăng nhập vai trò NHAN_VIEN hoặc ADMIN
+        const user = state.currentUser;
+        if (user && (user.vai_tro === 'NHAN_VIEN' || user.vai_tro === 'ADMIN')) {
+          adminShell.classList.remove('hidden');
+          renderAdminPortal();
+        } else {
+          gateShell.classList.remove('hidden');
+          renderAdminLoginGate();
+        }
+      } else {
+        shopShell.classList.remove('hidden');
+        renderShopHeader();
+        renderStorefront();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.addEventListener('hashchange', renderCurrentRoute);
+
+    // ================= SVG VECTOR SẮC NÉT CHO 8 LOẠI SẢN PHẨM =================
+    function getProductSVG(iconType) {
+      const svgs = {
+        headphone: `<svg viewBox="0 0 100 100" class="w-24 h-24 drop-shadow-sm"><path d="M20 55v-9a30 30 0 0160 0v9" fill="none" stroke="#0284c7" stroke-width="6" stroke-linecap="round"/><rect x="13" y="48" width="14" height="30" rx="6" fill="#059669" stroke="#0f172a" stroke-width="2"/><rect x="73" y="48" width="14" height="30" rx="6" fill="#059669" stroke="#0f172a" stroke-width="2"/><circle cx="20" cy="63" r="3" fill="#a7f3d0"/><circle cx="80" cy="63" r="3" fill="#a7f3d0"/></svg>`,
+        keyboard: `<svg viewBox="0 0 120 100" class="w-28 h-24 drop-shadow-sm"><rect x="10" y="28" width="100" height="44" rx="6" fill="#0f172a" stroke="#0ea5e9" stroke-width="2.5"/><g fill="#e2e8f0"><rect x="17" y="35" width="10" height="8" rx="1.5"/><rect x="30" y="35" width="10" height="8" rx="1.5"/><rect x="43" y="35" width="10" height="8" rx="1.5"/><rect x="56" y="35" width="10" height="8" rx="1.5"/><rect x="69" y="35" width="10" height="8" rx="1.5"/><rect x="82" y="35" width="21" height="8" rx="1.5" fill="#10b981"/><rect x="17" y="47" width="14" height="8" rx="1.5"/><rect x="34" y="47" width="10" height="8" rx="1.5"/><rect x="47" y="47" width="10" height="8" rx="1.5"/><rect x="60" y="47" width="10" height="8" rx="1.5"/><rect x="73" y="47" width="10" height="8" rx="1.5"/><rect x="86" y="47" width="17" height="8" rx="1.5" fill="#0284c7"/><rect x="34" y="58" width="46" height="7" rx="1.5" fill="#38bdf8"/></g></svg>`,
+        mouse: `<svg viewBox="0 0 100 100" class="w-24 h-24 drop-shadow-sm"><rect x="30" y="14" width="40" height="72" rx="20" fill="#ffffff" stroke="#0284c7" stroke-width="3"/><path d="M50 14v28M30 42h40" stroke="#cbd5e1" stroke-width="2"/><rect x="47" y="22" width="6" height="12" rx="3" fill="#059669"/></svg>`,
+        watch: `<svg viewBox="0 0 100 100" class="w-24 h-24 drop-shadow-sm"><rect x="38" y="8" width="24" height="20" rx="3" fill="#0284c7"/><rect x="38" y="72" width="24" height="20" rx="3" fill="#0284c7"/><rect x="27" y="24" width="46" height="52" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="2.5"/><text x="50" y="52" text-anchor="middle" fill="#10b981" font-size="11" font-weight="bold">10:09</text><circle cx="50" cy="63" r="3" fill="#0ea5e9"/></svg>`,
+        backpack: `<svg viewBox="0 0 100 100" class="w-24 h-24 drop-shadow-sm"><path d="M40 20v-4a10 10 0 0120 0v4" fill="none" stroke="#0f172a" stroke-width="3"/><rect x="24" y="20" width="52" height="66" rx="14" fill="#0284c7" stroke="#0f172a" stroke-width="2.5"/><rect x="32" y="50" width="36" height="26" rx="6" fill="#10b981" stroke="#0f172a" stroke-width="2"/><line x1="36" y1="58" x2="64" y2="58" stroke="#ffffff" stroke-width="2"/></svg>`,
+        monitor: `<svg viewBox="0 0 120 100" class="w-28 h-24 drop-shadow-sm"><rect x="14" y="14" width="92" height="58" rx="5" fill="#0f172a" stroke="#0284c7" stroke-width="2.5"/><rect x="19" y="19" width="82" height="48" rx="2" fill="url(#mon-grad)"/><path d="M52 72h16l4 14H48l4-14z" fill="#64748b"/><rect x="38" y="84" width="44" height="5" rx="2.5" fill="#0f172a"/><defs><linearGradient id="mon-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#059669"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient></defs></svg>`,
+        speaker: `<svg viewBox="0 0 100 100" class="w-24 h-24 drop-shadow-sm"><rect x="28" y="12" width="44" height="76" rx="14" fill="#0f172a" stroke="#10b981" stroke-width="2.5"/><circle cx="50" cy="36" r="11" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/><circle cx="50" cy="66" r="14" fill="#059669" stroke="#34d399" stroke-width="2"/><circle cx="50" cy="66" r="5" fill="#0f172a"/></svg>`,
+        stand: `<svg viewBox="0 0 120 100" class="w-28 h-24 drop-shadow-sm"><path d="M22 72l26-42h44l-26 42H22z" fill="#e2e8f0" stroke="#0284c7" stroke-width="2.5" stroke-linejoin="round"/><path d="M35 72v12h50V72" fill="none" stroke="#059669" stroke-width="3.5" stroke-linecap="round"/><line x1="20" y1="84" x2="100" y2="84" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/></svg>`
+      };
+      return svgs[iconType] || svgs.headphone;
+    }
+
+    function getProductRating(productId) {
+      const list = state.reviews.filter(r => r.productId === productId);
+      if (list.length === 0) return { avg: 5.0, count: 0 };
+      const sum = list.reduce((s, r) => s + r.rating, 0);
+      return { avg: Number((sum / list.length).toFixed(1)), count: list.length };
+    }
+
+    function renderStars(avg) {
+      const full = Math.round(avg);
+      let html = '';
+      for (let i = 1; i <= 5; i++) {
+        html += `<span class="${i <= full ? 'text-amber-400' : 'text-slate-300'}">★</span>`;
+      }
+      return html;
+    }
+
+    // ================= HEADER KHÁCH HÀNG & AUTH MODAL (UC01) =================
+    function renderShopHeader() {
+      const badge = document.getElementById('cart-badge');
+      badge.textContent = state.cart.reduce((s, item) => s + item.quantity, 0);
+
+      const guestBox = document.getElementById('header-guest-actions');
+      const userBox = document.getElementById('header-user-actions');
+
+      if (!state.currentUser) {
+        guestBox.classList.remove('hidden');
+        guestBox.classList.add('flex');
+        userBox.classList.add('hidden');
+        userBox.classList.remove('flex');
+      } else {
+        guestBox.classList.add('hidden');
+        guestBox.classList.remove('flex');
+        userBox.classList.remove('hidden');
+        userBox.classList.add('flex');
+        document.getElementById('header-user-avatar').textContent = state.currentUser.ho_ten.charAt(0).toUpperCase();
+        document.getElementById('header-user-name').textContent = state.currentUser.ho_ten;
+        document.getElementById('header-user-tier').textContent = state.currentUser.hang_thanh_vien || 'Khách hàng';
+      }
+    }
+
+    function openAuthModal(mode = 'login') {
+      authModalMode = mode;
+      pendingRegData = null;
+      renderAuthModal();
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+
+    function setAuthModalMode(mode) {
+      authModalMode = mode;
+      pendingRegData = null;
+      renderAuthModal();
+    }
+
+    function fillAuthDemo(email) {
+      const emailEl = document.getElementById('auth-login-email');
+      const pwEl = document.getElementById('auth-login-pw');
+      if (emailEl && pwEl) {
+        emailEl.value = email;
+        pwEl.value = '123456';
+        showToast(`Đã điền tài khoản mẫu (${email}). Bấm Đăng nhập để tiếp tục.`, 'info');
+      }
+    }
+
+    function renderAuthModal() {
+      const body = document.getElementById('auth-modal-body');
+
+      if (authModalMode === 'otp') {
+        body.innerHTML = `
+          <div class="text-center mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center mb-2">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-slate-800">Xác thực mã OTP</h3>
+            <p class="text-xs text-slate-500 mt-1">Mã OTP 6 số đã được gửi tới SĐT <strong>${pendingRegData ? pendingRegData.so_dien_thoai : ''}</strong> (Mã demo: <strong class="text-emerald-600 font-mono">123456</strong>)</p>
+          </div>
+          <form onsubmit="verifyRegistrationOTP(event)" class="space-y-3">
+            <input id="reg-otp-input" type="text" maxlength="6" placeholder="Nhập 6 chữ số (VD: 123456)" required class="w-full px-4 py-3 text-center font-mono text-lg tracking-widest border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
+            <button type="submit" class="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-sky-600 shadow-md">XÁC NHẬN MÃ OTP</button>
+            <button type="button" onclick="setAuthModalMode('register')" class="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">← Quay lại nhập thông tin</button>
+          </form>
+        `;
+        return;
+      }
+
+      if (authModalMode === 'forgot') {
+        body.innerHTML = `
+          <div class="mb-4">
+            <h3 class="text-lg font-extrabold text-slate-800">Khôi phục Mật khẩu</h3>
+            <p class="text-xs text-slate-500 mt-1">Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.</p>
+          </div>
+          <form onsubmit="handleForgotPassword(event)" class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Email tài khoản *</label>
+              <input id="forgot-email" type="email" required placeholder="khachhang@eshop.vn" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <button type="submit" class="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 shadow-md">GỬI YÊU CẦU KHÔI PHỤC</button>
+            <button type="button" onclick="setAuthModalMode('login')" class="w-full py-2 text-xs font-semibold text-sky-600 hover:underline">← Quay lại Đăng nhập</button>
+          </form>
+        `;
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="flex border-b border-slate-200 mb-4">
+          <button onclick="setAuthModalMode('login')" class="flex-1 pb-2.5 text-sm font-bold border-b-2 transition ${authModalMode === 'login' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-700'}">Đăng nhập</button>
+          <button onclick="setAuthModalMode('register')" class="flex-1 pb-2.5 text-sm font-bold border-b-2 transition ${authModalMode === 'register' ? 'border-sky-600 text-sky-700' : 'border-transparent text-slate-400 hover:text-slate-700'}">Đăng ký</button>
+        </div>
+
+        ${authModalMode === 'login' ? `
+          <form onsubmit="handleAuthLogin(event)" class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+              <input id="auth-login-email" type="email" required placeholder="khachhang@eshop.vn" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-semibold text-slate-600">Mật khẩu *</label>
+                <button type="button" onclick="setAuthModalMode('forgot')" class="text-[11px] font-semibold text-sky-600 hover:underline">Quên mật khẩu?</button>
+              </div>
+              <input id="auth-login-pw" type="password" required placeholder="••••••••" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <button type="submit" class="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:opacity-95 shadow-md">ĐĂNG NHẬP</button>
+          </form>
+
+          <!-- Đăng nhập nhanh Google -->
+          <div class="mt-3">
+            <button type="button" onclick="handleGoogleLogin()" class="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-xs text-slate-700 flex items-center justify-center gap-2 transition">
+              <span class="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center">G</span>
+              Đăng nhập nhanh bằng Google
+            </button>
+          </div>
+
+          <!-- Điền nhanh tài khoản Demo 3 vai trò -->
+          <div class="mt-4 pt-3 border-t border-slate-100">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-2">Điền nhanh tài khoản Demo (MK: 123456)</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" onclick="fillAuthDemo('khachhang@eshop.vn')" class="py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[11px] font-bold">Khách hàng</button>
+              <button type="button" onclick="fillAuthDemo('nhanvien@eshop.vn')" class="py-1.5 px-2 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-[11px] font-bold">Nhân viên</button>
+              <button type="button" onclick="fillAuthDemo('admin@eshop.vn')" class="py-1.5 px-2 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 text-[11px] font-bold">Admin</button>
+            </div>
+            <div class="mt-3 text-center">
+              <button type="button" onclick="closeModal('auth-modal'); navigateTo('#admin');" class="text-[11px] font-semibold text-slate-500 hover:text-sky-600 underline">
+                Cổng Quản lý dành cho Nhân viên / Admin →
+              </button>
+            </div>
+          </div>
+        ` : `
+          <form onsubmit="handleRegisterStep1(event)" class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Họ và tên *</label>
+              <input id="reg-name" type="text" required placeholder="VD: Nguyễn Hữu Nghĩa" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại *</label>
+                <input id="reg-phone" type="text" required placeholder="0987654321" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+                <input id="reg-email" type="email" required placeholder="mai@gmail.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Địa chỉ nhận hàng </label>
+              <input id="reg-addr" type="text" required placeholder="Số nhà, đường, quận/huyện..." class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu *</label>
+              <input id="reg-pw" type="password" required minlength="6" placeholder="Tối thiểu 6 ký tự" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500" />
+            </div>
+            <button type="submit" class="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:opacity-95 shadow-md">TIẾP TỤC &amp; NHẬN MÃ OTP</button>
+          </form>
+        `}
+      `;
+    }
+
+    function handleAuthLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('auth-login-email').value.trim().toLowerCase();
+      const pw = document.getElementById('auth-login-pw').value;
+
+      const acc = state.accounts.find(a => a.email.toLowerCase() === email && a.password === pw);
+      if (!acc) {
+        showToast('Email hoặc mật khẩu không chính xác!', 'error');
+        return;
+      }
+      if (!acc.trang_thai) {
+        showToast('Tài khoản của bạn đang bị khóa. Vui lòng liên hệ Quản trị viên.', 'error');
+        return;
+      }
+
+      state.currentUser = { ...acc };
+      saveState();
+      closeModal('auth-modal');
+
+      if (acc.vai_tro === 'NHAN_VIEN' || acc.vai_tro === 'ADMIN') {
+        showToast(`Đăng nhập thành công (${acc.ho_ten}). Đang chuyển sang Cổng Quản lý...`, 'success');
+        navigateTo('#admin');
+      } else {
+        renderShopHeader();
+        showToast(`Chào mừng ${acc.ho_ten} quay trở lại!`, 'success');
+      }
+    }
+
+    function handleRegisterStep1(e) {
+      e.preventDefault();
+      const ho_ten = document.getElementById('reg-name').value.trim();
+      const so_dien_thoai = document.getElementById('reg-phone').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
+      const dia_chi = document.getElementById('reg-addr').value.trim();
+      const password = document.getElementById('reg-pw').value;
+
+      if (state.accounts.some(a => a.email.toLowerCase() === email)) {
+        showToast('Email này đã được đăng ký trong hệ thống!', 'error');
+        return;
+      }
+
+      pendingRegData = {
+        id: Date.now(),
+        ho_ten,
+        email,
+        password,
+        so_dien_thoai,
+        dia_chi,
+        vai_tro: 'KHACH_HANG',
+        hang_thanh_vien: 'Hạng Đồng',
+        trang_thai: true
+      };
+      authModalMode = 'otp';
+      renderAuthModal();
+      showToast('Hệ thống đã gửi mã OTP xác thực: 123456', 'info');
+    }
+
+    function verifyRegistrationOTP(e) {
+      e.preventDefault();
+      const code = document.getElementById('reg-otp-input').value.trim();
+      if (code !== '123456') {
+        showToast('Mã OTP không chính xác! Vui lòng nhập 123456.', 'error');
+        return;
+      }
+      if (pendingRegData) {
+        state.accounts.push(pendingRegData);
+        state.currentUser = { ...pendingRegData };
+        pendingRegData = null;
+        saveState();
+        closeModal('auth-modal');
+        renderShopHeader();
+        showToast(`Đăng ký & xác thực OTP thành công! Xin chào ${state.currentUser.ho_ten}.`, 'success');
+      }
+    }
+
+    function handleForgotPassword(e) {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value.trim();
+      showToast(`Đã gửi liên kết đặt lại mật khẩu tới ${email}. Vui lòng kiểm tra hộp thư.`, 'info');
+      setAuthModalMode('login');
+    }
+
+    function handleGoogleLogin() {
+      const guestSocial = {
+        id: 101,
+        ho_ten: 'Khách hàng Google',
+        email: 'google.user@eshop.vn',
+        password: 'social_login',
+        so_dien_thoai: '0908777666',
+        dia_chi: '227 Nguyễn Văn Cừ, Quận 5, TP.HCM',
+        vai_tro: 'KHACH_HANG',
+        hang_thanh_vien: 'Hạng Bạc',
+        trang_thai: true
+      };
+      if (!state.accounts.some(a => a.email === guestSocial.email)) {
+        state.accounts.push(guestSocial);
+      }
+      state.currentUser = guestSocial;
+      saveState();
+      closeModal('auth-modal');
+      renderShopHeader();
+      showToast('Đăng nhập nhanh qua Google thành công!', 'success');
+    }
+
+    function logoutCustomer() {
+      state.currentUser = null;
+      saveState();
+      renderShopHeader();
+      showToast('Bạn đã đăng xuất khỏi tài khoản.', 'info');
+    }
+
+    // ================= ADMIN LOGIN GATE & ĐĂNG XUẤT ADMIN =================
+    function renderAdminLoginGate() {
+      const warn = document.getElementById('admin-gate-warning');
+      if (state.currentUser && state.currentUser.vai_tro === 'KHACH_HANG') {
+        warn.classList.remove('hidden');
+        warn.innerHTML = `Bạn đang đăng nhập bằng tài khoản Khách hàng (<strong>${state.currentUser.email}</strong>). Vui lòng đăng nhập bằng tài khoản <strong>Nhân viên</strong> hoặc <strong>Quản trị viên</strong> để truy cập cổng này.`;
+      } else {
+        warn.classList.add('hidden');
+      }
+    }
+
+    function fillAdminGateDemo(email) {
+      document.getElementById('gate-email').value = email;
+      document.getElementById('gate-password').value = '123456';
+      showToast(`Đã điền tài khoản ${email}. Bấm Đăng nhập Cổng Quản lý.`, 'info');
+    }
+
+    function handleAdminGateLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('gate-email').value.trim().toLowerCase();
+      const pw = document.getElementById('gate-password').value;
+
+      const acc = state.accounts.find(a => a.email.toLowerCase() === email && a.password === pw);
+      if (!acc) {
+        showToast('Email hoặc mật khẩu quản trị không chính xác!', 'error');
+        return;
+      }
+      if (!acc.trang_thai) {
+        showToast('Tài khoản này đang bị khóa!', 'error');
+        return;
+      }
+      if (acc.vai_tro !== 'NHAN_VIEN' && acc.vai_tro !== 'ADMIN') {
+        showToast('Từ chối truy cập! Tài khoản Khách hàng không có quyền vào Cổng Quản lý.', 'error');
+        return;
+      }
+
+      state.currentUser = { ...acc };
+      // Nếu là Nhân viên, đặt tab mặc định về orders (không được vào reports)
+      if (acc.vai_tro === 'NHAN_VIEN' && !['orders', 'inventory'].includes(state.adminTab)) {
+        state.adminTab = 'orders';
+      }
+      saveState();
+      renderCurrentRoute();
+      showToast(`Chào mừng ${acc.ho_ten} đăng nhập Cổng Quản lý!`, 'success');
+    }
+
+    function logoutAdmin() {
+      state.currentUser = null;
+      saveState();
+      renderCurrentRoute();
+      showToast('Đã đăng xuất khỏi Cổng Quản lý.', 'info');
+    }
+
+    function toggleAdminMobileMenu() {
+      document.getElementById('admin-sidebar-menu').classList.toggle('hidden');
+      document.getElementById('admin-sidebar-menu').classList.toggle('flex');
+    }
+
+    // ================= CỬA HÀNG: TÌM KIẾM, LỌC, SẮP XẾP (UC02) =================
+    function toggleMobileFilter() {
+      document.getElementById('filter-sidebar').classList.toggle('hidden');
+    }
+
+    function handleSearchInput(val) {
+      filterState.keyword = val.trim().toLowerCase();
+      document.getElementById('clear-search-btn').classList.toggle('hidden', !val);
+      renderProductGrid();
+    }
+
+    function clearSearch() {
+      document.getElementById('global-search-input').value = '';
+      handleSearchInput('');
+    }
+
+    function setSort(sortKey) {
+      filterState.sortBy = sortKey;
+      renderStorefront();
+    }
+
+    function applyFilters() {
+      const catEl = document.querySelector('input[name="filter-cat"]:checked');
+      const ratingEl = document.querySelector('input[name="filter-rating"]:checked');
+      filterState.category = catEl ? catEl.value : 'Tất cả';
+      filterState.minPrice = document.getElementById('filter-min-price').value;
+      filterState.maxPrice = document.getElementById('filter-max-price').value;
+      filterState.minRating = ratingEl ? Number(ratingEl.value) : 0;
+      renderProductGrid();
+      showToast('Đã áp dụng bộ lọc tìm kiếm.', 'info');
+    }
+
+    function resetFilters() {
+      filterState = { keyword: '', category: 'Tất cả', minPrice: '', maxPrice: '', minRating: 0, sortBy: 'popular' };
+      document.getElementById('global-search-input').value = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      document.getElementById('filter-min-price').value = '';
+      document.getElementById('filter-max-price').value = '';
+      const defRating = document.querySelector('input[name="filter-rating"][value="0"]');
+      if (defRating) defRating.checked = true;
+      renderStorefront();
+    }
+
+    function copyVoucherQuick(code) {
+      const temp = document.createElement('input');
+      temp.value = code;
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast(`Đã sao chép mã ${code}! Hãy áp dụng khi thanh toán.`, 'success');
+      } catch (e) {
+        showToast(`Mã giảm giá: ${code}`, 'info');
+      }
+      temp.remove();
+    }
+
+    function renderStorefront() {
+      const catList = document.getElementById('filter-category-list');
+      catList.innerHTML = state.categories.map(cat => `
+        <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-50">
+          <input type="radio" name="filter-cat" value="${cat}" ${filterState.category === cat ? 'checked' : ''} onchange="applyFilters()" class="text-emerald-600 focus:ring-emerald-500" />
+          <span class="${filterState.category === cat ? 'font-bold text-emerald-700' : 'text-slate-700'}">${cat}</span>
+        </label>
+      `).join('');
+
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        const active = btn.dataset.sort === filterState.sortBy;
+        btn.className = `sort-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          active ? 'bg-gradient-to-r from-emerald-600 to-sky-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`;
+      });
+
+      renderProductGrid();
+    }
+
+    function renderProductGrid() {
+      let list = state.products.filter(p => {
+        const matchKw = !filterState.keyword ||
+          p.name.toLowerCase().includes(filterState.keyword) ||
+          p.sku.toLowerCase().includes(filterState.keyword) ||
+          p.category.toLowerCase().includes(filterState.keyword);
+        const matchCat = filterState.category === 'Tất cả' || p.category === filterState.category;
+        const matchMin = !filterState.minPrice || p.price >= Number(filterState.minPrice);
+        const matchMax = !filterState.maxPrice || p.price <= Number(filterState.maxPrice);
+        const { avg } = getProductRating(p.id);
+        const matchRating = avg >= filterState.minRating;
+        return matchKw && matchCat && matchMin && matchMax && matchRating;
+      });
+
+      if (filterState.sortBy === 'popular') list.sort((a, b) => b.sold - a.sold);
+      else if (filterState.sortBy === 'newest') list.sort((a, b) => b.id - a.id);
+      else if (filterState.sortBy === 'price-asc') list.sort((a, b) => a.price - b.price);
+      else if (filterState.sortBy === 'price-desc') list.sort((a, b) => b.price - a.price);
+
+      const countText = `Hiển thị ${list.length} sản phẩm`;
+      document.getElementById('desktop-product-count').textContent = countText;
+      document.getElementById('mobile-product-count').textContent = countText;
+
+      const grid = document.getElementById('product-grid');
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl border border-slate-200 p-10 text-center">
+            <h3 class="text-base font-bold text-slate-800">Không tìm thấy sản phẩm phù hợp</h3>
+            <p class="text-xs text-slate-500 mt-1">Vui lòng thử từ khóa khác hoặc đặt lại bộ lọc.</p>
+            <button onclick="resetFilters()" class="mt-4 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Xem tất cả sản phẩm</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = list.map(p => {
+        const rating = getProductRating(p.id);
+        const outOfStock = p.stock <= 0;
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg hover:border-sky-300 transition-all flex flex-col group">
+            <div onclick="openProductDetail(${p.id})" class="cursor-pointer relative bg-gradient-to-br from-emerald-50/70 via-slate-50 to-sky-50/80 h-48 flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform">
+              ${getProductSVG(p.icon)}
+              <span class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[10px] font-mono font-bold text-slate-600">${p.sku}</span>
+              ${outOfStock ? `<span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold shadow">HẾT HÀNG</span>`
+                : p.stock <= 10 ? `<span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">Còn ${p.stock} SP</span>` : ''}
+            </div>
+            <div class="p-4 flex-1 flex flex-col">
+              <span class="text-[11px] font-semibold text-sky-600 mb-1">${p.category}</span>
+              <h3 onclick="openProductDetail(${p.id})" class="cursor-pointer font-bold text-slate-800 text-sm line-clamp-2 hover:text-emerald-600 transition min-h-[40px]">${p.name}</h3>
+              <div class="mt-2 flex items-center gap-1.5 text-xs">
+                <span>${renderStars(rating.avg)}</span>
+                <span class="font-semibold text-slate-700">${rating.avg}</span>
+                <span class="text-slate-400">(${rating.count} đánh giá)</span>
+              </div>
+              <div class="mt-auto pt-3 flex items-end justify-between gap-2">
+                <div>
+                  <p class="text-base font-extrabold text-rose-600">${formatVND(p.price)}</p>
+                  <p class="text-[11px] ${outOfStock ? 'text-rose-500 font-semibold' : 'text-slate-500'}">
+                    ${outOfStock ? 'Hết hàng trong kho' : `Tồn kho: ${p.stock} SP`}
+                  </p>
+                </div>
+                <button
+                  onclick="addToCart(${p.id})"
+                  ${outOfStock ? 'disabled' : ''}
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ${outOfStock ? 'Hết hàng' : '+ Giỏ hàng'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ================= CHI TIẾT SẢN PHẨM & ĐÁNH GIÁ (UC02) =================
+    function openProductDetail(productId) {
+      const p = state.products.find(x => x.id === productId);
+      if (!p) return;
+      const rating = getProductRating(p.id);
+      const prodReviews = state.reviews.filter(r => r.productId === p.id);
+      const outOfStock = p.stock <= 0;
+
+      document.getElementById('product-detail-content').innerHTML = `
+        <div class="sticky top-0 bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10">
+          <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200">SKU: ${p.sku}</span>
+          <button onclick="closeModal('product-detail-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div class="md:col-span-5 bg-gradient-to-br from-emerald-50 to-sky-50 rounded-2xl border border-slate-200 flex items-center justify-center p-8 min-h-[220px]">
+              ${getProductSVG(p.icon)}
+            </div>
+            <div class="md:col-span-7 flex flex-col justify-between space-y-3">
+              <div>
+                <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">${p.category}</span>
+                <h2 class="text-xl font-extrabold text-slate-900 mt-1">${p.name}</h2>
+                <div class="flex items-center gap-2 mt-2 text-xs">
+                  <span class="text-sm">${renderStars(rating.avg)}</span>
+                  <strong class="text-slate-700">${rating.avg}/5</strong>
+                  <span class="text-slate-400">• ${rating.count} đánh giá • Đã bán ${p.sold}</span>
+                </div>
+                <p class="text-2xl font-extrabold text-rose-600 mt-3">${formatVND(p.price)}</p>
+                <div class="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                  <strong class="block text-slate-800 mb-1">Thông số nổi bật:</strong>
+                  ${p.specs || 'Hàng chính hãng bảo hành 12 tháng.'}
+                </div>
+                <p class="text-sm text-slate-600 mt-3 leading-relaxed">${p.desc}</p>
+              </div>
+              <div class="pt-3 flex flex-wrap items-center gap-3">
+                <span class="px-3 py-1.5 rounded-xl text-xs font-bold ${outOfStock ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                  ${outOfStock ? 'Hết hàng' : `Còn ${p.stock} sản phẩm trong kho`}
+                </span>
+                <button
+                  onclick="addToCart(${p.id}); closeModal('product-detail-modal');"
+                  ${outOfStock ? 'disabled' : ''}
+                  class="flex-1 py-3 px-5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-sky-600 hover:opacity-95 shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ${outOfStock ? 'Tạm hết hàng' : '+ Thêm vào giỏ hàng'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Đánh giá sản phẩm -->
+          <div class="border-t border-slate-200 pt-5 grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div class="md:col-span-7 space-y-3">
+              <h3 class="text-sm font-extrabold text-slate-800">Đánh giá từ Khách hàng (${prodReviews.length})</h3>
+              <div class="space-y-3 max-h-60 overflow-y-auto pr-1">
+                ${prodReviews.length === 0 ? `<p class="text-xs text-slate-400">Chưa có đánh giá nào cho sản phẩm này.</p>` : prodReviews.map(r => `
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                    <div class="flex items-center justify-between mb-1">
+                      <strong class="text-slate-800">${r.userName}</strong>
+                      <span class="text-slate-400 text-[11px]">${r.date}</span>
+                    </div>
+                    <div class="mb-1">${renderStars(r.rating)}</div>
+                    <p class="text-slate-600">${r.comment}</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="md:col-span-5">
+              <form onsubmit="submitReview(event, ${p.id})" class="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-3">
+                <h4 class="text-xs font-extrabold text-sky-900 uppercase">Gửi đánh giá của bạn</h4>
+                ${!state.currentUser ? `<p class="text-[11px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 p-2 rounded-lg">Yêu cầu đăng nhập Khách hàng để gửi đánh giá.</p>` : ''}
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Chọn số sao</label>
+                  <select id="rev-rating" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold">
+                    <option value="5">★★★★★ (5 sao - Tuyệt vời)</option>
+                    <option value="4">★★★★☆ (4 sao - Hài lòng)</option>
+                    <option value="3">★★★☆☆ (3 sao - Bình thường)</option>
+                    <option value="2">★★☆☆☆ (2 sao - Chưa tốt)</option>
+                    <option value="1">★☆☆☆☆ (1 sao - Kém)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Nhận xét chi tiết *</label>
+                  <textarea id="rev-comment" rows="3" required placeholder="Chia sẻ trải nghiệm sử dụng..." class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-sky-500"></textarea>
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition">Gửi đánh giá</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('product-detail-modal').classList.remove('hidden');
+    }
+
+    function submitReview(e, productId) {
+      e.preventDefault();
+      // Tiền điều kiện UC: Yêu cầu đăng nhập trước khi gửi đánh giá
+      if (!state.currentUser) {
+        closeModal('product-detail-modal');
+        openAuthModal('login');
+        showToast('Vui lòng đăng nhập tài khoản Khách hàng để gửi đánh giá sản phẩm.', 'warning');
+        return;
+      }
+      const rating = Number(document.getElementById('rev-rating').value);
+      const comment = document.getElementById('rev-comment').value.trim();
+      state.reviews.unshift({
+        id: Date.now(),
+        productId,
+        userName: state.currentUser.ho_ten,
+        rating,
+        comment,
+        date: new Date().toLocaleDateString('vi-VN')
+      });
+      saveState();
+      showToast('Cảm ơn bạn! Đánh giá đã được lưu thành công.', 'success');
+      openProductDetail(productId);
+      renderProductGrid();
+    }
+
+    // ================= QUẢN LÝ GIỎ HÀNG (UC03 - KHÁCH VÃNG LAI ĐƯỢC DÙNG) =================
+    function openCartDrawer() {
+      renderCartDrawer();
+      document.getElementById('cart-drawer-overlay').classList.remove('hidden');
+    }
+
+    function closeCartDrawer() {
+      document.getElementById('cart-drawer-overlay').classList.add('hidden');
+    }
+
+    function addToCart(productId) {
+      const product = state.products.find(p => p.id === productId);
+      if (!product || product.stock <= 0) {
+        showToast('Sản phẩm hiện đã hết hàng trong kho.', 'error');
+        return;
+      }
+      const existing = state.cart.find(item => item.productId === productId);
+      if (existing) {
+        if (existing.quantity + 1 > product.stock) {
+          showToast(`Vượt quá tồn kho! Kho chỉ còn tối đa ${product.stock} sản phẩm.`, 'warning');
+          return;
+        }
+        existing.quantity += 1;
+      } else {
+        state.cart.push({ productId, quantity: 1 });
+      }
+      saveState();
+      renderShopHeader();
+      showToast(`Đã thêm "${product.name}" vào giỏ hàng.`, 'success');
+    }
+
+    function updateCartQty(productId, delta) {
+      const item = state.cart.find(c => c.productId === productId);
+      const product = state.products.find(p => p.id === productId);
+      if (!item || !product) return;
+
+      const nextQty = item.quantity + delta;
+      if (nextQty <= 0) {
+        removeCartItem(productId);
+        return;
+      }
+      if (nextQty > product.stock) {
+        showToast(`Số lượng đặt không được vượt quá tồn kho (${product.stock} SP).`, 'warning');
+        return;
+      }
+      item.quantity = nextQty;
+      saveState();
+      renderShopHeader();
+      renderCartDrawer();
+    }
+
+    function removeCartItem(productId) {
+      state.cart = state.cart.filter(c => c.productId !== productId);
+      saveState();
+      renderShopHeader();
+      renderCartDrawer();
+      showToast('Đã xóa sản phẩm khỏi giỏ hàng.', 'info');
+    }
+
+    function getCartSubtotal() {
+      return state.cart.reduce((sum, item) => {
+        const p = state.products.find(x => x.id === item.productId);
+        return sum + (p ? p.price * item.quantity : 0);
+      }, 0);
+    }
+
+    function renderCartDrawer() {
+      const container = document.getElementById('cart-items-container');
+      const subtotalEl = document.getElementById('cart-subtotal');
+      const checkoutBtn = document.getElementById('proceed-checkout-btn');
+
+      if (state.cart.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-700">Giỏ hàng đang trống</p>
+            <p class="text-xs text-slate-500 mt-1">Hãy thêm sản phẩm vào giỏ để tiến hành mua sắm.</p>
+          </div>
+        `;
+        subtotalEl.textContent = '0 đ';
+        checkoutBtn.disabled = true;
+        return;
+      }
+
+      checkoutBtn.disabled = false;
+      container.innerHTML = state.cart.map(item => {
+        const p = state.products.find(x => x.id === item.productId);
+        if (!p) return '';
+        return `
+          <div class="flex gap-3 p-3 rounded-2xl border border-slate-200 bg-white">
+            <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-50 to-sky-50 flex items-center justify-center shrink-0 p-1.5">
+              ${getProductSVG(p.icon)}
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold text-slate-800 truncate">${p.name}</h4>
+              <p class="text-xs font-bold text-rose-600 mt-0.5">${formatVND(p.price)}</p>
+              <p class="text-[10px] text-slate-400">Kho còn: ${p.stock} SP</p>
+              <div class="flex items-center justify-between mt-2">
+                <div class="inline-flex items-center border border-slate-200 rounded-lg bg-slate-50">
+                  <button onclick="updateCartQty(${p.id}, -1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 rounded-l-lg font-bold">-</button>
+                  <span class="px-2.5 text-xs font-bold text-slate-800">${item.quantity}</span>
+                  <button onclick="updateCartQty(${p.id}, 1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 rounded-r-lg font-bold">+</button>
+                </div>
+                <button onclick="removeCartItem(${p.id})" class="text-xs font-semibold text-rose-500 hover:text-rose-700">Xóa</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      subtotalEl.textContent = formatVND(getCartSubtotal());
+    }
+
+    // ================= ĐẶT HÀNG & THANH TOÁN - CHECKOUT (UC04) =================
+    function handleProceedToCheckout() {
+      // Tiền điều kiện UC04: Phải đăng nhập trước khi tiến hành đặt hàng
+      if (!state.currentUser) {
+        closeCartDrawer();
+        openAuthModal('login');
+        showToast('Vui lòng đăng nhập để tiến hành Đặt hàng & Thanh toán (UC04).', 'warning');
+        return;
+      }
+      if (state.cart.length === 0) {
+        showToast('Giỏ hàng của bạn đang trống.', 'warning');
+        return;
+      }
+
+      closeCartDrawer();
+      appliedVoucher = null;
+      document.getElementById('chk-voucher-input').value = '';
+      document.getElementById('voucher-feedback').innerHTML = '';
+
+      document.getElementById('chk-name').value = state.currentUser.ho_ten || '';
+      document.getElementById('chk-phone').value = state.currentUser.so_dien_thoai || '';
+      document.getElementById('chk-address').value = state.currentUser.dia_chi || '';
+
+      document.getElementById('chk-items-list').innerHTML = state.cart.map(item => {
+        const p = state.products.find(x => x.id === item.productId);
+        if (!p) return '';
+        return `
+          <div class="py-2.5 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">x${item.quantity}</span>
+              <span class="font-semibold text-slate-800 truncate">${p.name}</span>
+            </div>
+            <span class="font-bold text-slate-700 shrink-0 ml-2">${formatVND(p.price * item.quantity)}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Render danh sách chip voucher đồng bộ từ state.vouchers
+      document.getElementById('checkout-voucher-chips').innerHTML = state.vouchers.map(v => `
+        <button type="button" onclick="selectVoucherChip('${v.code}')" class="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold hover:bg-emerald-100">
+          ${v.code} (${v.type === 'fixed' ? '-' + (v.value / 1000) + 'k' : '-' + v.value + '%'})
+        </button>
+      `).join('');
+
+      updateCheckoutSummary();
+      document.getElementById('checkout-modal').classList.remove('hidden');
+    }
+
+    function selectVoucherChip(code) {
+      document.getElementById('chk-voucher-input').value = code;
+      applyVoucher();
+    }
+
+    function applyVoucher() {
+      const code = document.getElementById('chk-voucher-input').value.trim().toUpperCase();
+      const feedback = document.getElementById('voucher-feedback');
+      const subtotal = getCartSubtotal();
+
+      if (!code) {
+        appliedVoucher = null;
+        feedback.innerHTML = '';
+        updateCheckoutSummary();
+        return;
+      }
+
+      const v = state.vouchers.find(x => x.code === code);
+      if (!v) {
+        appliedVoucher = null;
+        feedback.innerHTML = `<span class="text-rose-600 font-semibold">✕ Mã giảm giá không tồn tại hoặc đã hết hạn.</span>`;
+        updateCheckoutSummary();
+        return;
+      }
+
+      if (subtotal < (v.minOrder || 0)) {
+        appliedVoucher = null;
+        feedback.innerHTML = `<span class="text-amber-600 font-semibold">⚠ Mã này yêu cầu đơn tối thiểu ${formatVND(v.minOrder)}.</span>`;
+        updateCheckoutSummary();
+        return;
+      }
+
+      appliedVoucher = v;
+      feedback.innerHTML = `<span class="text-emerald-600 font-semibold">✓ Đã áp dụng ${v.code}: ${v.desc}</span>`;
+      updateCheckoutSummary();
+    }
+
+    function calculateCheckoutTotals() {
+      const subtotal = getCartSubtotal();
+      const shipEl = document.querySelector('input[name="chk-shipping"]:checked');
+      const shippingPartner = shipEl ? shipEl.value : 'Giao Hàng Nhanh';
+      const shippingFee = shipEl ? Number(shipEl.dataset.fee) : 30000;
+
+      let discount = 0;
+      if (appliedVoucher && subtotal >= (appliedVoucher.minOrder || 0)) {
+        if (appliedVoucher.type === 'fixed') {
+          discount = appliedVoucher.value;
+        } else {
+          discount = Math.min((subtotal * appliedVoucher.value) / 100, appliedVoucher.maxDiscount);
+        }
+      }
+      const totalAmount = Math.max(0, subtotal + shippingFee - discount);
+      return { subtotal, shippingPartner, shippingFee, discount, totalAmount };
+    }
+
+    function updateCheckoutSummary() {
+      const { subtotal, shippingFee, discount, totalAmount } = calculateCheckoutTotals();
+      document.getElementById('chk-subtotal').textContent = formatVND(subtotal);
+      document.getElementById('chk-ship-fee').textContent = formatVND(shippingFee);
+      document.getElementById('chk-discount').textContent = `- ${formatVND(discount)}`;
+      document.getElementById('chk-total').textContent = formatVND(totalAmount);
+    }
+
+    function submitOrder() {
+      const name = document.getElementById('chk-name').value.trim();
+      const phone = document.getElementById('chk-phone').value.trim();
+      const address = document.getElementById('chk-address').value.trim();
+
+      if (!name || !phone || !address) {
+        showToast('Vui lòng nhập đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng.', 'error');
+        return;
+      }
+
+      for (const item of state.cart) {
+        const p = state.products.find(x => x.id === item.productId);
+        if (!p || p.stock < item.quantity) {
+          showToast(`Sản phẩm "${p ? p.name : ''}" vừa hết hàng hoặc không đủ số lượng tồn!`, 'error');
+          return;
+        }
+      }
+
+      const { shippingPartner, shippingFee, discount, totalAmount } = calculateCheckoutTotals();
+      const paymentMethod = document.querySelector('input[name="chk-payment"]:checked').value;
+      const now = new Date();
+      const dateStr = `${now.toLocaleDateString('vi-VN')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const newOrderId = 'DH' + (1043 + state.orders.length);
+
+      const orderPayload = {
+        id: newOrderId,
+        userId: state.currentUser.id,
+        customerName: name,
+        phone,
+        address,
+        date: dateStr,
+        items: state.cart.map(c => {
+          const p = state.products.find(x => x.id === c.productId);
+          return { productId: p.id, name: p.name, qty: c.quantity, price: p.price };
+        }),
+        shippingPartner,
+        shippingFee,
+        discount,
+        totalAmount,
+        paymentMethod,
+        status: paymentMethod === 'COD' ? 'CHO_XAC_NHAN' : 'DA_THANH_TOAN',
+        trackingCode: ''
+      };
+
+      if (paymentMethod === 'COD') {
+        finalizeOrderTransaction(orderPayload);
+      } else {
+        pendingOnlineOrder = orderPayload;
+        const labels = { VNPAY: 'VNPay QR Gateway', MOMO: 'Ví điện tử MoMo' };
+        document.getElementById('qr-method-label').textContent = labels[paymentMethod] || paymentMethod;
+        document.getElementById('qr-amount-label').textContent = formatVND(totalAmount);
+        document.getElementById('qr-payment-modal').classList.remove('hidden');
+      }
+    }
+
+    function completeOnlinePayment(isSuccess) {
+      closeModal('qr-payment-modal');
+      if (!isSuccess) {
+        // Ngoại lệ E1/E2: Thanh toán online thất bại -> Giữ nguyên giỏ hàng để khách thử lại hoặc đổi PTTT
+        pendingOnlineOrder = null;
+        showToast('Thanh toán trực tuyến thất bại (Hết hạn QR hoặc hủy giao dịch). Vui lòng thử lại hoặc chọn COD.', 'error');
+        return;
+      }
+      if (pendingOnlineOrder) {
+        finalizeOrderTransaction(pendingOnlineOrder);
+        pendingOnlineOrder = null;
+      }
+    }
+
+    function finalizeOrderTransaction(orderPayload) {
+      orderPayload.items.forEach(item => {
+        const p = state.products.find(x => x.id === item.productId);
+        if (p) {
+          p.stock = Math.max(0, p.stock - item.qty);
+          p.sold += item.qty;
+        }
+      });
+
+      state.orders.unshift(orderPayload);
+      state.cart = [];
+      saveState();
+
+      closeModal('checkout-modal');
+      renderShopHeader();
+      renderStorefront();
+      showToast(`Đặt hàng thành công! Mã đơn hàng của bạn là #${orderPayload.id}.`, 'success');
+      openMyOrdersModal();
+    }
+
+    // ================= ĐƠN HÀNG CỦA TÔI & KHÁCH HỦY ĐƠN =================
+    function getStatusBadge(status) {
+      const map = {
+        CHO_XAC_NHAN: { text: 'Chờ xác nhận', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
+        DA_THANH_TOAN: { text: 'Đã thanh toán', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+        DANG_GIAO: { text: 'Đang giao hàng', cls: 'bg-sky-100 text-sky-800 border-sky-200' },
+        HOAN_THANH: { text: 'Hoàn thành', cls: 'bg-teal-100 text-teal-800 border-teal-200' },
+        DA_HUY: { text: 'Đã hủy', cls: 'bg-rose-100 text-rose-800 border-rose-200' }
+      };
+      const st = map[status] || map.CHO_XAC_NHAN;
+      return `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${st.cls}">${st.text}</span>`;
+    }
+
+    function openMyOrdersModal() {
+      if (!state.currentUser) {
+        openAuthModal('login');
+        return;
+      }
+      const myOrders = state.orders.filter(o => o.userId === state.currentUser.id || o.phone === state.currentUser.so_dien_thoai);
+      const container = document.getElementById('my-orders-list');
+
+      if (myOrders.length === 0) {
+        container.innerHTML = `<p class="text-sm text-slate-500 text-center py-8">Bạn chưa có đơn hàng nào.</p>`;
+      } else {
+        container.innerHTML = myOrders.map(o => `
+          <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
+              <div>
+                <span class="font-mono font-extrabold text-slate-800 text-sm">#${o.id}</span>
+                <span class="text-xs text-slate-500 ml-2">${o.date}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                ${o.trackingCode ? `<span class="px-2 py-0.5 rounded bg-sky-50 border border-sky-200 text-sky-700 font-mono text-[11px] font-bold">Mã VĐ: ${o.trackingCode}</span>` : ''}
+                ${getStatusBadge(o.status)}
+              </div>
+            </div>
+            <div class="space-y-1 text-xs text-slate-700">
+              ${o.items.map(it => `<p>• ${it.name} <strong class="text-slate-900">x${it.qty}</strong> — ${formatVND(it.price * it.qty)}</p>`).join('')}
+            </div>
+            <div class="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="text-slate-500">${o.shippingPartner} • PTTT: <strong class="text-slate-700">${o.paymentMethod}</strong></span>
+              <div class="flex items-center gap-3">
+                ${o.status === 'CHO_XAC_NHAN' ? `
+                  <button onclick="customerCancelOrder('${o.id}')" class="px-3 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 font-bold hover:bg-rose-100 transition">Hủy đơn</button>
+                ` : ''}
+                <span class="text-sm font-extrabold text-rose-600">Tổng: ${formatVND(o.totalAmount)}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('my-orders-modal').classList.remove('hidden');
+    }
+
+    function customerCancelOrder(orderId) {
+      openConfirmModal(
+        `Hủy đơn hàng #${orderId}`,
+        'Đơn hàng đang ở trạng thái Chờ xác nhận. Bạn có chắc chắn muốn hủy đơn này?',
+        () => {
+          const order = state.orders.find(o => o.id === orderId);
+          if (!order || order.status !== 'CHO_XAC_NHAN') return;
+          order.status = 'DA_HUY';
+          order.items.forEach(item => {
+            const p = state.products.find(x => x.id === item.productId);
+            if (p) {
+              p.stock += item.qty;
+              p.sold = Math.max(0, p.sold - item.qty);
+            }
+          });
+          saveState();
+          renderStorefront();
+          openMyOrdersModal();
+          showToast(`Đã hủy đơn hàng #${order.id} thành công.`, 'warning');
+        }
+      );
+    }
+
+    // ================= TRANG QUẢN LÝ & PHÂN QUYỀN RBAC (#admin) =================
+    function switchAdminTab(tab) {
+      const role = state.currentUser ? state.currentUser.vai_tro : '';
+      if (role !== 'ADMIN' && ['reports', 'vouchers', 'accounts'].includes(tab)) {
+        showToast('Tài khoản Nhân viên không có quyền truy cập mục dành riêng cho Quản trị viên!', 'error');
+        return;
+      }
+      state.adminTab = tab;
+      saveState();
+      renderAdminPortal();
+    }
+
+    function renderAdminPortal() {
+      const user = state.currentUser;
+      const isAdmin = user.vai_tro === 'ADMIN';
+
+      document.getElementById('admin-role-badge').textContent = isAdmin ? 'Quản trị viên (ADMIN)' : 'Nhân viên (NHAN_VIEN)';
+      document.getElementById('admin-user-name').textContent = user.ho_ten;
+      document.getElementById('admin-user-email').textContent = user.email;
+
+      // Bảo vệ RBAC nếu tab hiện tại vượt quyền Nhân viên
+      if (!isAdmin && !['orders', 'inventory'].includes(state.adminTab)) {
+        state.adminTab = 'orders';
+      }
+
+      const menuItems = [
+        { id: 'orders', label: 'Xử lý Đơn hàng (UC05)', allowStaff: true, icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+        { id: 'inventory', label: 'Sản phẩm & Kho (UC06)', allowStaff: true, icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+        { id: 'reports', label: 'Báo cáo Thống kê (UC07)', allowStaff: false, icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+        { id: 'vouchers', label: 'Quản lý Voucher', allowStaff: false, icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
+        { id: 'accounts', label: 'Quản lý Tài khoản', allowStaff: false, icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' }
+      ];
+
+      document.getElementById('admin-nav-list').innerHTML = menuItems
+        .filter(m => isAdmin || m.allowStaff)
+        .map(m => {
+          const active = state.adminTab === m.id;
+          return `
+            <button onclick="switchAdminTab('${m.id}')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-left ${
+              active ? 'bg-gradient-to-r from-emerald-500 to-sky-600 text-white shadow-md' : 'text-sky-100/80 hover:bg-white/10 hover:text-white'
+            }">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${m.icon}"/></svg>
+              <span>${m.label}</span>
+            </button>
+          `;
+        }).join('') + (!isAdmin ? `
+          <div class="mt-3 p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-sky-200/80">
+            Vai trò <strong>Nhân viên</strong> chỉ được phân quyền xử lý Đơn hàng &amp; Quản lý Kho.
+          </div>
+        ` : '');
+
+      document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`admin-tab-${state.adminTab}`).classList.remove('hidden');
+
+      renderAdminKPIs();
+      if (state.adminTab === 'orders') renderAdminOrders();
+      else if (state.adminTab === 'inventory') renderAdminInventory();
+      else if (state.adminTab === 'reports') renderAdminReports();
+      else if (state.adminTab === 'vouchers') renderAdminVouchers();
+      else if (state.adminTab === 'accounts') renderAdminAccounts();
+    }
+
+    function renderAdminKPIs() {
+      const validOrders = state.orders.filter(o => o.status !== 'DA_HUY');
+      const totalRevenue = validOrders.reduce((s, o) => s + o.totalAmount, 0);
+      const successOrders = state.orders.filter(o => o.status === 'HOAN_THANH' || o.status === 'DA_THANH_TOAN').length;
+      const pendingOrders = state.orders.filter(o => o.status === 'CHO_XAC_NHAN' || o.status === 'DA_THANH_TOAN').length;
+      const lowStockCount = state.products.filter(p => p.stock <= 10).length;
+
+      document.getElementById('admin-kpi-grid').innerHTML = `
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500">Tổng Doanh thu</p>
+          <p class="text-xl font-extrabold text-emerald-600 mt-1.5">${formatVND(totalRevenue)}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500">Đơn đã thanh toán / hoàn thành</p>
+          <p class="text-xl font-extrabold text-teal-600 mt-1.5">${successOrders} đơn hàng</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500">Đơn chờ xử lý / giao</p>
+          <p class="text-xl font-extrabold text-sky-600 mt-1.5">${pendingOrders} đơn hàng</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500">Cảnh báo sắp hết hàng (&le; 10)</p>
+          <p class="text-xl font-extrabold ${lowStockCount > 0 ? 'text-rose-600' : 'text-emerald-600'} mt-1.5">${lowStockCount} sản phẩm</p>
+        </div>
+      `;
+    }
+
+    // UC05: Xử lý & Duyệt đơn hàng
+    function renderAdminOrders() {
+      const filterVal = document.getElementById('admin-order-filter').value;
+      const filtered = filterVal === 'ALL' ? state.orders : state.orders.filter(o => o.status === filterVal);
+      const tbody = document.getElementById('admin-orders-tbody');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-xs">Không có đơn hàng nào thuộc trạng thái này.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(o => `
+        <tr class="hover:bg-slate-50/70 transition">
+          <td class="py-3.5 px-3 align-top">
+            <span class="font-mono font-bold text-slate-900">#${o.id}</span>
+            <p class="text-[11px] text-slate-400">${o.date}</p>
+          </td>
+          <td class="py-3.5 px-3 align-top">
+            <p class="font-bold text-slate-800">${o.customerName}</p>
+            <p class="text-xs text-slate-500">${o.items.map(i => `${i.name} (x${i.qty})`).join(', ')}</p>
+          </td>
+          <td class="py-3.5 px-3 align-top">
+            <p class="font-bold text-rose-600">${formatVND(o.totalAmount)}</p>
+            <p class="text-[11px] text-slate-500">${o.paymentMethod} • ${o.shippingPartner}</p>
+          </td>
+          <td class="py-3.5 px-3 align-top">${getStatusBadge(o.status)}</td>
+          <td class="py-3.5 px-3 align-top">
+            ${o.trackingCode ? `<span class="px-2 py-1 rounded bg-sky-50 border border-sky-200 text-sky-700 font-mono text-xs font-bold">${o.trackingCode}</span>` : `<span class="text-xs text-slate-400">—</span>`}
+          </td>
+          <td class="py-3.5 px-3 align-top text-right whitespace-nowrap">
+            <div class="inline-flex gap-1.5">
+              ${(o.status === 'CHO_XAC_NHAN' || o.status === 'DA_THANH_TOAN') ? `
+                <button onclick="approveAndShipOrder('${o.id}')" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-sky-600 text-white text-xs font-bold hover:opacity-95">Duyệt &amp; Giao</button>
+                <button onclick="cancelOrderByAdmin('${o.id}')" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold hover:bg-rose-100">Hủy đơn</button>
+              ` : o.status === 'DANG_GIAO' ? `
+                <button onclick="completeOrder('${o.id}')" class="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold hover:bg-teal-700">Hoàn thành</button>
+              ` : `<span class="text-xs text-slate-400 italic">Đã đóng</span>`}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function approveAndShipOrder(orderId) {
+      const order = state.orders.find(o => o.id === orderId);
+      if (!order) return;
+      const prefix = order.shippingPartner.includes('Tiết Kiệm') ? 'GHTK' : 'GHN';
+      order.trackingCode = prefix + Math.floor(100000 + Math.random() * 899999);
+      order.status = 'DANG_GIAO';
+      saveState();
+      renderAdminPortal();
+      showToast(`Đã duyệt đơn #${order.id}, sinh mã vận đơn ${order.trackingCode}.`, 'success');
+    }
+
+    function completeOrder(orderId) {
+      const order = state.orders.find(o => o.id === orderId);
+      if (!order) return;
+      order.status = 'HOAN_THANH';
+      saveState();
+      renderAdminPortal();
+      showToast(`Đơn hàng #${order.id} đã hoàn thành.`, 'success');
+    }
+
+    function cancelOrderByAdmin(orderId) {
+      openConfirmModal(
+        `Hủy đơn hàng #${orderId}`,
+        'Khi hủy đơn, hệ thống sẽ tự động hoàn trả chính xác số lượng sản phẩm vào tồn kho. Bạn chắc chắn muốn hủy?',
+        () => {
+          const order = state.orders.find(o => o.id === orderId);
+          if (!order || order.status === 'DA_HUY') return;
+          order.status = 'DA_HUY';
+          order.items.forEach(item => {
+            const p = state.products.find(x => x.id === item.productId);
+            if (p) {
+              p.stock += item.qty;
+              p.sold = Math.max(0, p.sold - item.qty);
+            }
+          });
+          saveState();
+          renderAdminPortal();
+          showToast(`Đã hủy đơn #${order.id} và hoàn trả tồn kho thành công.`, 'warning');
+        }
+      );
+    }
+
+    // UC06: Quản lý Sản phẩm & Tồn kho
+    function renderAdminInventory() {
+      const tbody = document.getElementById('admin-inventory-tbody');
+      tbody.innerHTML = state.products.map(p => {
+        const statusBadge = p.stock === 0
+          ? `<span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold">Hết hàng</span>`
+          : p.stock <= 10
+          ? `<span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold">Sắp hết hàng</span>`
+          : `<span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold">Còn hàng</span>`;
+
+        return `
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="py-3 px-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center p-1 shrink-0">${getProductSVG(p.icon)}</div>
+                <div>
+                  <p class="font-bold text-slate-800">${p.name}</p>
+                  <p class="text-[11px] font-mono text-slate-500">SKU: ${p.sku}</p>
+                </div>
+              </div>
+            </td>
+            <td class="py-3 px-3 text-xs text-slate-600">${p.category}</td>
+            <td class="py-3 px-3 font-bold text-slate-800">${formatVND(p.price)}</td>
+            <td class="py-3 px-3 font-extrabold ${p.stock <= 10 ? 'text-rose-600' : 'text-slate-800'}">${p.stock} SP</td>
+            <td class="py-3 px-3">${statusBadge}</td>
+            <td class="py-3 px-3 text-right whitespace-nowrap">
+              <button onclick="openProductFormModal(${p.id})" class="px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold hover:bg-sky-100 mr-1">Sửa</button>
+              <button onclick="deleteProduct(${p.id})" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold hover:bg-rose-100">Xóa</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openProductFormModal(productId = null) {
+      const title = document.getElementById('product-form-title');
+      if (productId) {
+        const p = state.products.find(x => x.id === productId);
+        title.textContent = `Chỉnh sửa Sản phẩm (${p.sku})`;
+        document.getElementById('pf-id').value = p.id;
+        document.getElementById('pf-name').value = p.name;
+        document.getElementById('pf-sku').value = p.sku;
+        document.getElementById('pf-category').value = p.category;
+        document.getElementById('pf-price').value = p.price;
+        document.getElementById('pf-stock').value = p.stock;
+        document.getElementById('pf-icon').value = p.icon;
+        document.getElementById('pf-desc').value = p.desc;
+      } else {
+        title.textContent = 'Thêm Sản phẩm Mới';
+        document.getElementById('pf-id').value = '';
+        document.getElementById('pf-name').value = '';
+        document.getElementById('pf-sku').value = '';
+        document.getElementById('pf-category').value = 'Âm thanh & Thiết bị đeo';
+        document.getElementById('pf-price').value = '';
+        document.getElementById('pf-stock').value = '';
+        document.getElementById('pf-icon').value = 'headphone';
+        document.getElementById('pf-desc').value = '';
+      }
+      document.getElementById('product-form-modal').classList.remove('hidden');
+    }
+
+    function saveProductForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('pf-id').value;
+      const name = document.getElementById('pf-name').value.trim();
+      const sku = document.getElementById('pf-sku').value.trim().toUpperCase();
+      const category = document.getElementById('pf-category').value;
+      const priceVal = document.getElementById('pf-price').value;
+      const stockVal = document.getElementById('pf-stock').value;
+      const icon = document.getElementById('pf-icon').value;
+      const desc = document.getElementById('pf-desc').value.trim();
+
+      // Ngoại lệ E1 (UC06): Kiểm tra trường bắt buộc
+      if (!name || !sku || priceVal === '' || stockVal === '' || !desc) {
+        showToast('Lỗi E1: Vui lòng nhập đầy đủ tất cả trường bắt buộc (*)!', 'error');
+        return;
+      }
+
+      const price = Number(priceVal);
+      const stock = Number(stockVal);
+
+      if (id) {
+        const idx = state.products.findIndex(x => x.id === Number(id));
+        if (idx !== -1) {
+          state.products[idx] = { ...state.products[idx], name, sku, category, price, stock, icon, desc };
+        }
+        showToast(`Đã cập nhật sản phẩm "${name}".`, 'success');
+      } else {
+        state.products.unshift({
+          id: Date.now(),
+          name, sku, category, price, stock, sold: 0, icon,
+          specs: 'Hàng chính hãng • Bảo hành tiêu chuẩn 12 tháng',
+          desc
+        });
+        showToast(`Đã thêm sản phẩm mới "${name}".`, 'success');
+      }
+
+      saveState();
+      closeModal('product-form-modal');
+      renderAdminPortal();
+    }
+
+    function deleteProduct(productId) {
+      const p = state.products.find(x => x.id === productId);
+      if (!p) return;
+      openConfirmModal(
+        'Xác nhận xóa sản phẩm',
+        `Bạn có chắc chắn muốn xóa "${p.name}" (${p.sku}) khỏi hệ thống?`,
+        () => {
+          state.products = state.products.filter(x => x.id !== productId);
+          state.cart = state.cart.filter(c => c.productId !== productId);
+          saveState();
+          renderAdminPortal();
+          showToast('Đã xóa sản phẩm thành công.', 'info');
+        }
+      );
+    }
+
+    // UC07: Báo cáo & Thống kê (CHỈ ADMIN)
+    function renderAdminReports() {
+      const period = document.getElementById('report-period').value;
+      const currentRevenue = state.orders
+        .filter(o => o.status !== 'DA_HUY')
+        .reduce((s, o) => s + o.totalAmount, 0);
+
+      const chartData = period === '7days'
+        ? [
+            { label: 'T2', val: 8500000 },
+            { label: 'T3', val: 12900000 },
+            { label: 'T4', val: 9400000 },
+            { label: 'T5', val: 16200000 },
+            { label: 'T6', val: 19800000 },
+            { label: 'T7', val: 15100000 },
+            { label: 'Hôm nay', val: currentRevenue }
+          ]
+        : period === 'month'
+        ? [
+            { label: 'Tuần 1', val: 38000000 },
+            { label: 'Tuần 2', val: 52500000 },
+            { label: 'Tuần 3', val: 46000000 },
+            { label: 'Tuần 4', val: currentRevenue + 24000000 }
+          ]
+        : [
+            { label: 'Tháng 9', val: 142000000 },
+            { label: 'Tháng 10', val: 168500000 },
+            { label: 'Tháng 11', val: currentRevenue + 135000000 }
+          ];
+
+      const maxVal = Math.max(...chartData.map(d => d.val), 1);
+      document.getElementById('revenue-chart-container').innerHTML = chartData.map(d => {
+        const pct = Math.max(12, Math.round((d.val / maxVal) * 100));
+        return `
+          <div class="flex-1 min-w-[54px] h-full flex flex-col justify-end items-center gap-1.5 group">
+            <span class="text-[10px] font-bold text-sky-700">${(d.val / 1000000).toFixed(1)}tr</span>
+            <div style="height: ${pct}%" class="w-full max-w-[46px] rounded-t-xl bg-gradient-to-t from-emerald-600 to-sky-500 shadow-sm group-hover:from-emerald-500 group-hover:to-sky-400 transition-all"></div>
+            <span class="text-[11px] font-semibold text-slate-600">${d.label}</span>
+          </div>
+        `;
+      }).join('');
+
+      const totalOrders = Math.max(state.orders.length, 1);
+      const statuses = [
+        { key: 'HOAN_THANH', label: 'Hoàn thành', color: 'bg-teal-500' },
+        { key: 'DANG_GIAO', label: 'Đang giao hàng', color: 'bg-sky-500' },
+        { key: 'DA_THANH_TOAN', label: 'Đã thanh toán', color: 'bg-emerald-500' },
+        { key: 'CHO_XAC_NHAN', label: 'Chờ xác nhận', color: 'bg-amber-500' },
+        { key: 'DA_HUY', label: 'Đã hủy', color: 'bg-rose-500' }
+      ];
+      document.getElementById('order-status-breakdown').innerHTML = statuses.map(s => {
+        const count = state.orders.filter(o => o.status === s.key).length;
+        const pct = Math.round((count / totalOrders) * 100);
+        return `
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span class="text-slate-700">${s.label}</span>
+              <span class="text-slate-600">${count} đơn (${pct}%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div style="width: ${pct}%" class="h-full ${s.color} rounded-full transition-all"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const top5 = [...state.products].sort((a, b) => b.sold - a.sold).slice(0, 5);
+      document.getElementById('top-products-list').innerHTML = top5.map((p, idx) => `
+        <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="w-6 h-6 rounded-lg ${idx === 0 ? 'bg-emerald-600 text-white' : 'bg-sky-100 text-sky-700'} text-xs font-extrabold flex items-center justify-center shrink-0">${idx + 1}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-800 truncate">${p.name}</p>
+              <p class="text-[11px] text-slate-500">${formatVND(p.price)} • Đã bán: <strong>${p.sold}</strong></p>
+            </div>
+          </div>
+          <span class="text-xs font-extrabold text-emerald-600 shrink-0">${formatVND(p.price * p.sold)}</span>
+        </div>
+      `).join('');
+    }
+
+    function exportCSVReport() {
+      const headers = ['Ma Don Hang', 'Ngay Dat', 'Khach Hang', 'So Dien Thoai', 'Phuong Thuc Thanh Toan', 'Don Vi Van Chuyen', 'Ma Van Don', 'Trang Thai', 'Tong Thanh Toan (VND)'];
+      const rows = state.orders.map(o => [
+        o.id, o.date, `"${o.customerName}"`, `"${o.phone}"`, o.paymentMethod,
+        `"${o.shippingPartner}"`, o.trackingCode || 'Chua cap', o.status, o.totalAmount
+      ]);
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Bao_Cao_ESHOP_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('Đã tải xuống file báo cáo CSV chuẩn UTF-8 cho Excel!', 'success');
+    }
+
+    // Quản lý Voucher (CHỈ ADMIN)
+    function renderAdminVouchers() {
+      const tbody = document.getElementById('admin-vouchers-tbody');
+      tbody.innerHTML = state.vouchers.map(v => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-3 font-mono font-bold text-emerald-700">${v.code}</td>
+          <td class="py-3 px-3 text-xs">${v.type === 'fixed' ? 'Giảm tiền cố định' : 'Giảm theo %'}</td>
+          <td class="py-3 px-3 text-xs font-bold text-slate-800">
+            ${v.type === 'fixed' ? formatVND(v.value) : `${v.value}% (Tối đa ${formatVND(v.maxDiscount)})`}
+          </td>
+          <td class="py-3 px-3 text-xs text-slate-500">${v.desc}</td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="deleteVoucher('${v.code}')" class="px-3 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold hover:bg-rose-100">Xóa</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function addVoucher(e) {
+      e.preventDefault();
+      const code = document.getElementById('v-code').value.trim().toUpperCase();
+      const type = document.getElementById('v-type').value;
+      const value = Number(document.getElementById('v-value').value);
+      const maxDiscount = Number(document.getElementById('v-max').value);
+
+      if (state.vouchers.some(v => v.code === code)) {
+        showToast('Mã voucher này đã tồn tại!', 'error');
+        return;
+      }
+      const desc = type === 'fixed'
+        ? `Giảm ${formatVND(value)}`
+        : `Giảm ${value}%, tối đa ${formatVND(maxDiscount)}`;
+
+      state.vouchers.push({ code, type, value, maxDiscount, minOrder: 0, desc });
+      saveState();
+      e.target.reset();
+      renderAdminVouchers();
+      showToast(`Đã thêm voucher ${code} thành công.`, 'success');
+    }
+
+    function deleteVoucher(code) {
+      state.vouchers = state.vouchers.filter(v => v.code !== code);
+      saveState();
+      renderAdminVouchers();
+      showToast(`Đã xóa voucher ${code}.`, 'info');
+    }
+
+    // Quản lý Tài khoản (CHỈ ADMIN)
+    function renderAdminAccounts() {
+      const tbody = document.getElementById('admin-accounts-tbody');
+      tbody.innerHTML = state.accounts.map(acc => {
+        const roleBadge = acc.vai_tro === 'ADMIN'
+          ? `<span class="px-2 py-0.5 rounded bg-teal-100 text-teal-800 text-[11px] font-bold">Quản trị viên</span>`
+          : acc.vai_tro === 'NHAN_VIEN'
+          ? `<span class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-[11px] font-bold">Nhân viên</span>`
+          : `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-bold">Khách hàng</span>`;
+
+        const isSelf = state.currentUser && state.currentUser.id === acc.id;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-3">
+              <p class="font-bold text-slate-800 text-xs">${acc.ho_ten}</p>
+              <p class="text-[11px] text-slate-500">${acc.email}</p>
+            </td>
+            <td class="py-3 px-3 text-xs text-slate-600">${acc.so_dien_thoai}</td>
+            <td class="py-3 px-3">${roleBadge}</td>
+            <td class="py-3 px-3">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${acc.trang_thai ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                ${acc.trang_thai ? 'Đang hoạt động' : 'Đã khóa'}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-right">
+              ${isSelf ? `<span class="text-xs text-slate-400 italic">Đang đăng nhập</span>` : `
+                <button onclick="toggleAccountStatus(${acc.id})" class="px-3 py-1 rounded-lg text-xs font-bold border ${acc.trang_thai ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'}">
+                  ${acc.trang_thai ? 'Khóa tài khoản' : 'Mở khóa'}
+                </button>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function toggleAccountStatus(accId) {
+      const acc = state.accounts.find(a => a.id === accId);
+      if (!acc) return;
+      acc.trang_thai = !acc.trang_thai;
+      saveState();
+      renderAdminAccounts();
+      showToast(`Đã ${acc.trang_thai ? 'mở khóa' : 'khóa'} tài khoản ${acc.email}.`, 'info');
+    }
+
+    function confirmResetDemo() {
+      openConfirmModal(
+        'Khôi phục dữ liệu mẫu',
+        'Toàn bộ đơn hàng, tồn kho và tài khoản sẽ được đưa về mặc định ban đầu. Bạn muốn tiếp tục?',
+        () => {
+          const currentAdmin = state.currentUser;
+          state = getDefaultState();
+          // Giữ phiên đăng nhập quản trị hiện tại nếu đang trong Portal
+          if (currentAdmin && (currentAdmin.vai_tro === 'ADMIN' || currentAdmin.vai_tro === 'NHAN_VIEN')) {
+            state.currentUser = currentAdmin;
+          }
+          saveState();
+          renderCurrentRoute();
+          showToast('Đã khôi phục dữ liệu mẫu thành công.', 'success');
+        },
+        'bg-sky-600 hover:bg-sky-700'
+      );
+    }
+
+    // ================= KHỞI CHẠY ỨNG DỤNG =================
+    window.onload = function () {
+      if (!window.location.hash) {
+        window.location.hash = '#shop';
+      }
+      renderCurrentRoute();
+    };
+  </script>
+</body>
+</html>
