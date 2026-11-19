@@ -869,248 +869,37 @@
   <!-- PHẦN 4: LOGIC ỨNG DỤNG JAVASCRIPT                                         -->
   <!-- ========================================================================= -->
   <script>
-    const STORAGE_KEY = 'eshop_online_state_v2';
+    // =====================================================================
+    // KẾT NỐI API (Node.js + Express) <-> SQL SERVER (database NPK)
+    // Toàn bộ sản phẩm, đánh giá, voucher, đơn hàng, tài khoản, giỏ hàng
+    // được đọc/ghi qua REST API /api/... thay vì dữ liệu giả trong localStorage.
+    // localStorage chỉ còn lưu PHIÊN đăng nhập (token) + giỏ hàng khách vãng lai.
+    // =====================================================================
+    const SESSION_KEY = 'npk_shop_session_v1';
+    const API_BASE = '/api';
 
-    /**
-     * Khởi tạo trạng thái mặc định:
-     * - currentUser = null (Chưa đăng nhập mặc định khi mở web)
-     * - Đồng bộ sản phẩm, đánh giá, voucher, đơn hàng, tài khoản qua localStorage
-     */
-    function getDefaultState() {
-      return {
-        currentUser: null,
-        adminTab: 'orders',
-        accounts: [
-          {
-            id: 1,
-            ho_ten: 'Nguyễn Hữu Nghĩa',
-            email: 'khachhang@eshop.vn',
-            password: '123456',
-            so_dien_thoai: '0987654321',
-            dia_chi: '123 Đường Nguyễn Văn Cừ, Phường 4, Quận 5, TP. Hồ Chí Minh',
-            vai_tro: 'KHACH_HANG',
-            hang_thanh_vien: 'Hạng Kim Cương',
-            trang_thai: true
-          },
-          {
-            id: 2,
-            ho_ten: 'Trần Quang Khải (NV Kho)',
-            email: 'nhanvien@eshop.vn',
-            password: '123456',
-            so_dien_thoai: '0897654321',
-            dia_chi: 'Kho Trung tâm E-SHOP, Quận 7, TP.HCM',
-            vai_tro: 'NHAN_VIEN',
-            hang_thanh_vien: 'Nhân viên Vận hành',
-            trang_thai: true
-          },
-          {
-            id: 3,
-            ho_ten: 'Đặng Hồng Phúc',
-            email: 'admin@eshop.vn',
-            password: '123456',
-            so_dien_thoai: '0789654321',
-            dia_chi: 'Trụ sở chính E-SHOP, Quận 1, TP.HCM',
-            vai_tro: 'ADMIN',
-            hang_thanh_vien: 'Quản trị viên Hệ thống',
-            trang_thai: true
-          }
-        ],
-        categories: [
-          'Tất cả',
-          'Âm thanh & Thiết bị đeo',
-          'Phụ kiện Máy tính',
-          'Balo & Tiện ích'
-        ],
-        products: [
-          {
-            id: 1,
-            sku: 'HP-ANC-01',
-            name: 'Tai nghe Bluetooth Chống ồn Pro ANC',
-            category: 'Âm thanh & Thiết bị đeo',
-            price: 1290000,
-            stock: 42,
-            sold: 145,
-            icon: 'headphone',
-            specs: 'Chống ồn chủ động 42dB • Bluetooth 5.3 • Pin 36 giờ',
-            desc: 'Âm thanh Hi-Res cân bằng, đệm tai protein siêu êm, hỗ trợ kết nối đa điểm mượt mà.'
-          },
-          {
-            id: 2,
-            sku: 'KB-MECH-87',
-            name: 'Bàn phím cơ Không dây RGB 87 phím',
-            category: 'Phụ kiện Máy tính',
-            price: 1850000,
-            stock: 8,
-            sold: 74,
-            icon: 'keyboard',
-            specs: '3 chế độ kết nối • Switch Linear Hot-swap • Keycap PBT',
-            desc: 'Cảm giác gõ đầm tay, chống ồn tốt cho văn phòng, pin 4000mAh dùng liên tục nhiều tuần.'
-          },
-          {
-            id: 3,
-            sku: 'MS-ERGO-02',
-            name: 'Chuột công thái học Silent Wireless',
-            category: 'Phụ kiện Máy tính',
-            price: 790000,
-            stock: 26,
-            sold: 112,
-            icon: 'mouse',
-            specs: 'DPI 4000 • Click giảm ồn 90% • Sạc nhanh Type-C',
-            desc: 'Thiết kế nâng góc 57 độ giúp giảm mỏi cổ tay tối đa khi làm việc cường độ cao.'
-          },
-          {
-            id: 4,
-            sku: 'WT-FIT-S9',
-            name: 'Đồng hồ thông minh Emerald Watch S9',
-            category: 'Âm thanh & Thiết bị đeo',
-            price: 3290000,
-            stock: 6,
-            sold: 53,
-            icon: 'watch',
-            specs: 'Màn AMOLED 1.43" • Đo SpO2 & Nhịp tim • Chống nước 5ATM',
-            desc: 'Theo dõi sức khỏe chuyên sâu, GPS độc lập và thời lượng pin lên đến 10 ngày.'
-          },
-          {
-            id: 5,
-            sku: 'BL-ECO-15',
-            name: 'Balo Laptop 15.6" Chống sốc EcoTech',
-            category: 'Balo & Tiện ích',
-            price: 890000,
-            stock: 19,
-            sold: 88,
-            icon: 'backpack',
-            specs: 'Chống thấm nước • Ngăn chống sốc 360° • Cổng sạc USB ngoài',
-            desc: 'Chất liệu vải tái chế thân thiện môi trường, phân ngăn khoa học cho laptop và phụ kiện.'
-          },
-          {
-            id: 6,
-            sku: 'MN-UHD-27',
-            name: 'Màn hình Đồ họa OceanView 27" 4K IPS',
-            category: 'Phụ kiện Máy tính',
-            price: 7490000,
-            stock: 9,
-            sold: 31,
-            icon: 'monitor',
-            specs: '4K UHD 3840x2160 • 99% sRGB • USB-C PD 65W',
-            desc: 'Hiển thị màu sắc chuẩn xác cho thiết kế và lập trình, chân đế công thái học xoay dọc linh hoạt.'
-          },
-          {
-            id: 7,
-            sku: 'SP-BASS-360',
-            name: 'Loa Bluetooth Di động AquaSound 360',
-            category: 'Âm thanh & Thiết bị đeo',
-            price: 1590000,
-            stock: 22,
-            sold: 67,
-            icon: 'speaker',
-            specs: 'Công suất 30W • Kháng nước IPX7 • Pin 18 giờ',
-            desc: 'Âm thanh vòm 360 độ mạnh mẽ, thiết kế gọn nhẹ chống nước phù hợp cả trong nhà lẫn dã ngoại.'
-          },
-          {
-            id: 8,
-            sku: 'ST-ALU-PRO',
-            name: 'Giá đỡ Laptop Nhôm nguyên khối Xoay 360',
-            category: 'Balo & Tiện ích',
-            price: 450000,
-            stock: 0,
-            sold: 109,
-            icon: 'stand',
-            specs: 'Hợp kim nhôm CNC • Chịu tải 10kg • Tản nhiệt thoáng khí',
-            desc: 'Điều chỉnh độ cao chuẩn tầm mắt, bảo vệ cột sống cổ và tăng hiệu quả tản nhiệt cho laptop.'
-          }
-        ],
-        reviews: [
-          { id: 1, productId: 1, userName: 'Trần Minh Quân', rating: 5, comment: 'Chống ồn rất tốt, đeo lâu không đau tai, giao hàng siêu nhanh.', date: '08/11/2026' },
-          { id: 2, productId: 2, userName: 'Lê Thu Hà', rating: 5, comment: 'Phím gõ êm, kết nối không dây ổn định cả Mac lẫn Windows.', date: '09/11/2026' },
-          { id: 3, productId: 3, userName: 'Phạm Hoàng Nam', rating: 4, comment: 'Chuột cầm vừa tay, click im ru rất thích.', date: '07/11/2026' },
-          { id: 4, productId: 4, userName: 'Nguyễn Thảo Vy', rating: 5, comment: 'Màn hình sắc nét, pin trâu dùng hơn tuần mới phải sạc.', date: '09/11/2026' },
-          { id: 5, productId: 6, userName: 'Đặng Quốc Bảo', rating: 5, comment: 'Màn 4K nét căng, cắm dây Type-C vừa xuất hình vừa sạc laptop quá tiện.', date: '06/11/2026' },
-          { id: 6, productId: 7, userName: 'Vũ Ngọc Ánh', rating: 4, comment: 'Bass ấm, mang đi cắm trại nghe rất đã.', date: '05/11/2026' }
-        ],
-        vouchers: [
-          { code: 'GIAM100K', type: 'fixed', value: 100000, maxDiscount: 100000, minOrder: 300000, desc: 'Giảm 100.000đ cho đơn từ 300.000đ' },
-          { code: 'SALE20', type: 'percent', value: 20, maxDiscount: 300000, minOrder: 0, desc: 'Giảm 20%, tối đa 300.000đ' }
-        ],
-        cart: [],
-        orders: [
-          {
-            id: 'DH1042',
-            userId: 1,
-            customerName: 'Nguyễn Hữu Nghĩa',
-            phone: '0987654321',
-            address: '123 Đường Nguyễn Văn Cừ, P.4, Q.5, TP.HCM',
-            date: '10/11/2026 09:15',
-            items: [
-              { productId: 1, name: 'Tai nghe Bluetooth Chống ồn Pro ANC', qty: 1, price: 1290000 },
-              { productId: 3, name: 'Chuột công thái học Silent Wireless', qty: 1, price: 790000 }
-            ],
-            shippingPartner: 'Giao Hàng Nhanh',
-            shippingFee: 30000,
-            discount: 100000,
-            totalAmount: 2010000,
-            paymentMethod: 'VNPAY',
-            status: 'DA_THANH_TOAN',
-            trackingCode: ''
-          },
-          {
-            id: 'DH1041',
-            userId: 1,
-            customerName: 'Nguyễn Hữu Nghĩa',
-            phone: '0987654321',
-            address: '123 Đường Nguyễn Văn Cừ, P.4, Q.5, TP.HCM',
-            date: '10/11/2026 08:30',
-            items: [
-              { productId: 5, name: 'Balo Laptop 15.6" Chống sốc EcoTech', qty: 1, price: 890000 }
-            ],
-            shippingPartner: 'Giao Hàng Tiết Kiệm',
-            shippingFee: 25000,
-            discount: 0,
-            totalAmount: 915000,
-            paymentMethod: 'COD',
-            status: 'CHO_XAC_NHAN',
-            trackingCode: ''
-          },
-          {
-            id: 'DH1040',
-            userId: 99,
-            customerName: 'Hà Quang Việt',
-            phone: '0987654321',
-            address: '88 Cầu Giấy, Hà Nội',
-            date: '09/11/2026 16:40',
-            items: [
-              { productId: 4, name: 'Đồng hồ thông minh Emerald Watch S9', qty: 1, price: 3290000 }
-            ],
-            shippingPartner: 'Giao Hàng Nhanh',
-            shippingFee: 30000,
-            discount: 0,
-            totalAmount: 3320000,
-            paymentMethod: 'MOMO',
-            status: 'DANG_GIAO',
-            trackingCode: 'GHN839201'
-          },
-          {
-            id: 'DH1039',
-            userId: 99,
-            customerName: 'Đào Minh Thiện',
-            phone: '0903445566',
-            address: '12 Bạch Đằng, Hải Châu, Đà Nẵng',
-            date: '08/11/2026 14:20',
-            items: [
-              { productId: 6, name: 'Màn hình Đồ họa OceanView 27" 4K IPS', qty: 1, price: 7490000 }
-            ],
-            shippingPartner: 'Giao Hàng Nhanh',
-            shippingFee: 30000,
-            discount: 300000,
-            totalAmount: 7220000,
-            paymentMethod: 'VNPAY',
-            status: 'HOAN_THANH',
-            trackingCode: 'GHN551209'
-          }
-        ]
-      };
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { token: null, currentUser: null, adminTab: 'orders', guestCart: [] };
     }
 
-    let state = loadState();
+    let session = loadSession();
+    let state = {
+      currentUser: session.currentUser,
+      adminTab: session.adminTab || 'orders',
+      accounts: [],
+      categories: ['Tất cả'],
+      products: [],
+      reviews: [],
+      vouchers: [],
+      allVouchers: [],
+      cart: session.currentUser ? [] : (session.guestCart || []),
+      orders: []
+    };
+
     let filterState = {
       keyword: '',
       category: 'Tất cả',
@@ -1124,31 +913,79 @@
     let authModalMode = 'login'; // 'login' | 'register' | 'forgot'
     let pendingRegData = null;
 
-    function loadState() {
+    function saveSession() {
+      session.currentUser = state.currentUser;
+      session.adminTab = state.adminTab;
+      if (!state.currentUser) session.guestCart = state.cart;
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-      } catch (e) {
-        console.error('Lỗi đọc localStorage:', e);
-      }
-      const def = getDefaultState();
-      saveState(def);
-      return def;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      } catch (e) {}
     }
 
-    function saveState(customState = state) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
-      } catch (e) {
-        console.error('Lỗi lưu localStorage:', e);
-      }
+    function saveState() {
+      saveSession();
     }
 
-    // Đồng bộ dữ liệu tức thì nếu người dùng mở 2 tab (#shop và #admin) cùng lúc
-    window.addEventListener('storage', (e) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        state = JSON.parse(e.newValue);
+    async function api(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
+      const res = await fetch(API_BASE + path, { ...options, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `Lỗi kết nối máy chủ (${res.status})`);
+      return data;
+    }
+
+    async function syncFromServer() {
+      try {
+        const data = await api('/state');
+        state.categories = ['Tất cả', ...(data.categories || [])];
+        state.products = data.products || [];
+        state.reviews = data.reviews || [];
+        state.vouchers = data.vouchers || [];
+        state.allVouchers = data.allVouchers || data.vouchers || [];
+        state.orders = data.orders || [];
+        state.accounts = data.accounts || [];
+
+        if (data.invalidToken) {
+          session.token = null;
+          state.currentUser = null;
+          state.cart = session.guestCart || [];
+          saveSession();
+        } else if (data.user) {
+          state.currentUser = data.user;
+          if (data.user.isCustomer) state.cart = data.cart || [];
+          saveSession();
+        } else {
+          state.currentUser = null;
+          state.cart = session.guestCart || [];
+        }
         renderCurrentRoute();
+      } catch (err) {
+        console.error('Lỗi tải dữ liệu từ SQL Server:', err);
+        showToast(err.message || 'Không kết nối được máy chủ CSDL SQL Server!', 'error');
+      }
+    }
+
+    async function syncCartToServer() {
+      saveSession();
+      if (state.currentUser && state.currentUser.isCustomer && session.token) {
+        try {
+          const r = await api('/cart', {
+            method: 'PUT',
+            body: JSON.stringify({ items: state.cart })
+          });
+          if (r.cart) state.cart = r.cart;
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    }
+
+    // Đồng bộ giữa nhiều tab trình duyệt
+    window.addEventListener('storage', (e) => {
+      if (e.key === SESSION_KEY) {
+        session = loadSession();
+        syncFromServer();
       }
     });
 
@@ -1422,35 +1259,52 @@
       `;
     }
 
-    function handleAuthLogin(e) {
+    async function mergeGuestCartAndSync(serverCart = []) {
+      const guestCart = session.guestCart || [];
+      if (state.currentUser && state.currentUser.isCustomer && guestCart.length > 0) {
+        const merged = [...serverCart];
+        for (const g of guestCart) {
+          const ex = merged.find(x => x.productId === g.productId);
+          if (ex) ex.quantity += g.quantity;
+          else merged.push({ ...g });
+        }
+        state.cart = merged;
+        session.guestCart = [];
+        await syncCartToServer();
+      } else {
+        state.cart = serverCart;
+      }
+      await syncFromServer();
+    }
+
+    async function handleAuthLogin(e) {
       e.preventDefault();
       const email = document.getElementById('auth-login-email').value.trim().toLowerCase();
-      const pw = document.getElementById('auth-login-pw').value;
+      const password = document.getElementById('auth-login-pw').value;
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        });
+        session.token = data.token;
+        state.currentUser = data.user;
+        saveSession();
+        closeModal('auth-modal');
+        await mergeGuestCartAndSync(data.cart || []);
 
-      const acc = state.accounts.find(a => a.email.toLowerCase() === email && a.password === pw);
-      if (!acc) {
-        showToast('Email hoặc mật khẩu không chính xác!', 'error');
-        return;
-      }
-      if (!acc.trang_thai) {
-        showToast('Tài khoản của bạn đang bị khóa. Vui lòng liên hệ Quản trị viên.', 'error');
-        return;
-      }
-
-      state.currentUser = { ...acc };
-      saveState();
-      closeModal('auth-modal');
-
-      if (acc.vai_tro === 'NHAN_VIEN' || acc.vai_tro === 'ADMIN') {
-        showToast(`Đăng nhập thành công (${acc.ho_ten}). Đang chuyển sang Cổng Quản lý...`, 'success');
-        navigateTo('#admin');
-      } else {
-        renderShopHeader();
-        showToast(`Chào mừng ${acc.ho_ten} quay trở lại!`, 'success');
+        if (data.user.vai_tro === 'NHAN_VIEN' || data.user.vai_tro === 'ADMIN') {
+          showToast(`Đăng nhập thành công (${data.user.ho_ten}). Đang chuyển sang Cổng Quản lý...`, 'success');
+          navigateTo('#admin');
+        } else {
+          renderShopHeader();
+          showToast(`Chào mừng ${data.user.ho_ten} quay trở lại!`, 'success');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
-    function handleRegisterStep1(e) {
+    async function handleRegisterStep1(e) {
       e.preventDefault();
       const ho_ten = document.getElementById('reg-name').value.trim();
       const so_dien_thoai = document.getElementById('reg-phone').value.trim();
@@ -1458,28 +1312,25 @@
       const dia_chi = document.getElementById('reg-addr').value.trim();
       const password = document.getElementById('reg-pw').value;
 
-      if (state.accounts.some(a => a.email.toLowerCase() === email)) {
-        showToast('Email này đã được đăng ký trong hệ thống!', 'error');
-        return;
+      try {
+        const chk = await api('/auth/check-email', {
+          method: 'POST',
+          body: JSON.stringify({ email })
+        });
+        if (chk.exists) {
+          showToast('Email này đã được đăng ký trong hệ thống!', 'error');
+          return;
+        }
+        pendingRegData = { ho_ten, email, password, so_dien_thoai, dia_chi };
+        authModalMode = 'otp';
+        renderAuthModal();
+        showToast('Hệ thống đã gửi mã OTP xác thực: 123456', 'info');
+      } catch (err) {
+        showToast(err.message, 'error');
       }
-
-      pendingRegData = {
-        id: Date.now(),
-        ho_ten,
-        email,
-        password,
-        so_dien_thoai,
-        dia_chi,
-        vai_tro: 'KHACH_HANG',
-        hang_thanh_vien: 'Hạng Đồng',
-        trang_thai: true
-      };
-      authModalMode = 'otp';
-      renderAuthModal();
-      showToast('Hệ thống đã gửi mã OTP xác thực: 123456', 'info');
     }
 
-    function verifyRegistrationOTP(e) {
+    async function verifyRegistrationOTP(e) {
       e.preventDefault();
       const code = document.getElementById('reg-otp-input').value.trim();
       if (code !== '123456') {
@@ -1487,13 +1338,22 @@
         return;
       }
       if (pendingRegData) {
-        state.accounts.push(pendingRegData);
-        state.currentUser = { ...pendingRegData };
-        pendingRegData = null;
-        saveState();
-        closeModal('auth-modal');
-        renderShopHeader();
-        showToast(`Đăng ký & xác thực OTP thành công! Xin chào ${state.currentUser.ho_ten}.`, 'success');
+        try {
+          const data = await api('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(pendingRegData)
+          });
+          session.token = data.token;
+          state.currentUser = data.user;
+          pendingRegData = null;
+          saveSession();
+          closeModal('auth-modal');
+          await mergeGuestCartAndSync(data.cart || []);
+          renderShopHeader();
+          showToast(`Đăng ký & xác thực OTP thành công! Xin chào ${state.currentUser.ho_ten}.`, 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
       }
     }
 
@@ -1504,31 +1364,27 @@
       setAuthModalMode('login');
     }
 
-    function handleGoogleLogin() {
-      const guestSocial = {
-        id: 101,
-        ho_ten: 'Khách hàng Google',
-        email: 'google.user@eshop.vn',
-        password: 'social_login',
-        so_dien_thoai: '0908777666',
-        dia_chi: '227 Nguyễn Văn Cừ, Quận 5, TP.HCM',
-        vai_tro: 'KHACH_HANG',
-        hang_thanh_vien: 'Hạng Bạc',
-        trang_thai: true
-      };
-      if (!state.accounts.some(a => a.email === guestSocial.email)) {
-        state.accounts.push(guestSocial);
+    async function handleGoogleLogin() {
+      try {
+        const data = await api('/auth/google', { method: 'POST' });
+        session.token = data.token;
+        state.currentUser = data.user;
+        saveSession();
+        closeModal('auth-modal');
+        await mergeGuestCartAndSync(data.cart || []);
+        renderShopHeader();
+        showToast('Đăng nhập nhanh qua Google thành công!', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
       }
-      state.currentUser = guestSocial;
-      saveState();
-      closeModal('auth-modal');
-      renderShopHeader();
-      showToast('Đăng nhập nhanh qua Google thành công!', 'success');
     }
 
     function logoutCustomer() {
+      session.token = null;
       state.currentUser = null;
-      saveState();
+      state.cart = session.guestCart || [];
+      state.orders = [];
+      saveSession();
       renderShopHeader();
       showToast('Bạn đã đăng xuất khỏi tài khoản.', 'info');
     }
@@ -1550,38 +1406,35 @@
       showToast(`Đã điền tài khoản ${email}. Bấm Đăng nhập Cổng Quản lý.`, 'info');
     }
 
-    function handleAdminGateLogin(e) {
+    async function handleAdminGateLogin(e) {
       e.preventDefault();
       const email = document.getElementById('gate-email').value.trim().toLowerCase();
-      const pw = document.getElementById('gate-password').value;
+      const password = document.getElementById('gate-password').value;
 
-      const acc = state.accounts.find(a => a.email.toLowerCase() === email && a.password === pw);
-      if (!acc) {
-        showToast('Email hoặc mật khẩu quản trị không chính xác!', 'error');
-        return;
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password, staffOnly: true })
+        });
+        session.token = data.token;
+        state.currentUser = data.user;
+        if (data.user.vai_tro === 'NHAN_VIEN' && !['orders', 'inventory'].includes(state.adminTab)) {
+          state.adminTab = 'orders';
+        }
+        saveSession();
+        await syncFromServer();
+        showToast(`Chào mừng ${data.user.ho_ten} đăng nhập Cổng Quản lý!`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
       }
-      if (!acc.trang_thai) {
-        showToast('Tài khoản này đang bị khóa!', 'error');
-        return;
-      }
-      if (acc.vai_tro !== 'NHAN_VIEN' && acc.vai_tro !== 'ADMIN') {
-        showToast('Từ chối truy cập! Tài khoản Khách hàng không có quyền vào Cổng Quản lý.', 'error');
-        return;
-      }
-
-      state.currentUser = { ...acc };
-      // Nếu là Nhân viên, đặt tab mặc định về orders (không được vào reports)
-      if (acc.vai_tro === 'NHAN_VIEN' && !['orders', 'inventory'].includes(state.adminTab)) {
-        state.adminTab = 'orders';
-      }
-      saveState();
-      renderCurrentRoute();
-      showToast(`Chào mừng ${acc.ho_ten} đăng nhập Cổng Quản lý!`, 'success');
     }
 
     function logoutAdmin() {
+      session.token = null;
       state.currentUser = null;
-      saveState();
+      state.orders = [];
+      state.accounts = [];
+      saveSession();
       renderCurrentRoute();
       showToast('Đã đăng xuất khỏi Cổng Quản lý.', 'info');
     }
@@ -1839,7 +1692,7 @@
       document.getElementById('product-detail-modal').classList.remove('hidden');
     }
 
-    function submitReview(e, productId) {
+    async function submitReview(e, productId) {
       e.preventDefault();
       // Tiền điều kiện UC: Yêu cầu đăng nhập trước khi gửi đánh giá
       if (!state.currentUser) {
@@ -1850,18 +1703,17 @@
       }
       const rating = Number(document.getElementById('rev-rating').value);
       const comment = document.getElementById('rev-comment').value.trim();
-      state.reviews.unshift({
-        id: Date.now(),
-        productId,
-        userName: state.currentUser.ho_ten,
-        rating,
-        comment,
-        date: new Date().toLocaleDateString('vi-VN')
-      });
-      saveState();
-      showToast('Cảm ơn bạn! Đánh giá đã được lưu thành công.', 'success');
-      openProductDetail(productId);
-      renderProductGrid();
+      try {
+        await api('/reviews', {
+          method: 'POST',
+          body: JSON.stringify({ productId, rating, comment })
+        });
+        await syncFromServer();
+        showToast('Cảm ơn bạn! Đánh giá đã được lưu vào CSDL thành công.', 'success');
+        openProductDetail(productId);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     // ================= QUẢN LÝ GIỎ HÀNG (UC03 - KHÁCH VÃNG LAI ĐƯỢC DÙNG) =================
@@ -1874,7 +1726,7 @@
       document.getElementById('cart-drawer-overlay').classList.add('hidden');
     }
 
-    function addToCart(productId) {
+    async function addToCart(productId) {
       const product = state.products.find(p => p.id === productId);
       if (!product || product.stock <= 0) {
         showToast('Sản phẩm hiện đã hết hàng trong kho.', 'error');
@@ -1890,19 +1742,19 @@
       } else {
         state.cart.push({ productId, quantity: 1 });
       }
-      saveState();
       renderShopHeader();
       showToast(`Đã thêm "${product.name}" vào giỏ hàng.`, 'success');
+      await syncCartToServer();
     }
 
-    function updateCartQty(productId, delta) {
+    async function updateCartQty(productId, delta) {
       const item = state.cart.find(c => c.productId === productId);
       const product = state.products.find(p => p.id === productId);
       if (!item || !product) return;
 
       const nextQty = item.quantity + delta;
       if (nextQty <= 0) {
-        removeCartItem(productId);
+        await removeCartItem(productId);
         return;
       }
       if (nextQty > product.stock) {
@@ -1910,17 +1762,17 @@
         return;
       }
       item.quantity = nextQty;
-      saveState();
       renderShopHeader();
       renderCartDrawer();
+      await syncCartToServer();
     }
 
-    function removeCartItem(productId) {
+    async function removeCartItem(productId) {
       state.cart = state.cart.filter(c => c.productId !== productId);
-      saveState();
       renderShopHeader();
       renderCartDrawer();
       showToast('Đã xóa sản phẩm khỏi giỏ hàng.', 'info');
+      await syncCartToServer();
     }
 
     function getCartSubtotal() {
@@ -2108,30 +1960,17 @@
         }
       }
 
-      const { shippingPartner, shippingFee, discount, totalAmount } = calculateCheckoutTotals();
+      const { shippingPartner, totalAmount } = calculateCheckoutTotals();
       const paymentMethod = document.querySelector('input[name="chk-payment"]:checked').value;
-      const now = new Date();
-      const dateStr = `${now.toLocaleDateString('vi-VN')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const newOrderId = 'DH' + (1043 + state.orders.length);
 
       const orderPayload = {
-        id: newOrderId,
-        userId: state.currentUser.id,
-        customerName: name,
+        name,
         phone,
         address,
-        date: dateStr,
-        items: state.cart.map(c => {
-          const p = state.products.find(x => x.id === c.productId);
-          return { productId: p.id, name: p.name, qty: c.quantity, price: p.price };
-        }),
         shippingPartner,
-        shippingFee,
-        discount,
-        totalAmount,
         paymentMethod,
-        status: paymentMethod === 'COD' ? 'CHO_XAC_NHAN' : 'DA_THANH_TOAN',
-        trackingCode: ''
+        voucherCode: appliedVoucher ? appliedVoucher.code : '',
+        items: state.cart.map(c => ({ productId: c.productId, qty: c.quantity }))
       };
 
       if (paymentMethod === 'COD') {
@@ -2159,24 +1998,22 @@
       }
     }
 
-    function finalizeOrderTransaction(orderPayload) {
-      orderPayload.items.forEach(item => {
-        const p = state.products.find(x => x.id === item.productId);
-        if (p) {
-          p.stock = Math.max(0, p.stock - item.qty);
-          p.sold += item.qty;
-        }
-      });
-
-      state.orders.unshift(orderPayload);
-      state.cart = [];
-      saveState();
-
-      closeModal('checkout-modal');
-      renderShopHeader();
-      renderStorefront();
-      showToast(`Đặt hàng thành công! Mã đơn hàng của bạn là #${orderPayload.id}.`, 'success');
-      openMyOrdersModal();
+    async function finalizeOrderTransaction(orderPayload) {
+      try {
+        const res = await api('/orders', {
+          method: 'POST',
+          body: JSON.stringify(orderPayload)
+        });
+        state.cart = [];
+        session.guestCart = [];
+        saveSession();
+        closeModal('checkout-modal');
+        await syncFromServer();
+        showToast(`Đặt hàng thành công! Mã đơn hàng của bạn là #${res.orderId}.`, 'success');
+        openMyOrdersModal();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     // ================= ĐƠN HÀNG CỦA TÔI & KHÁCH HỦY ĐƠN =================
@@ -2237,21 +2074,15 @@
       openConfirmModal(
         `Hủy đơn hàng #${orderId}`,
         'Đơn hàng đang ở trạng thái Chờ xác nhận. Bạn có chắc chắn muốn hủy đơn này?',
-        () => {
-          const order = state.orders.find(o => o.id === orderId);
-          if (!order || order.status !== 'CHO_XAC_NHAN') return;
-          order.status = 'DA_HUY';
-          order.items.forEach(item => {
-            const p = state.products.find(x => x.id === item.productId);
-            if (p) {
-              p.stock += item.qty;
-              p.sold = Math.max(0, p.sold - item.qty);
-            }
-          });
-          saveState();
-          renderStorefront();
-          openMyOrdersModal();
-          showToast(`Đã hủy đơn hàng #${order.id} thành công.`, 'warning');
+        async () => {
+          try {
+            await api(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' });
+            await syncFromServer();
+            openMyOrdersModal();
+            showToast(`Đã hủy đơn hàng #${orderId} và hoàn trả tồn kho trong CSDL.`, 'warning');
+          } catch (err) {
+            showToast(err.message, 'error');
+          }
         }
       );
     }
@@ -2388,44 +2219,38 @@
       `).join('');
     }
 
-    function approveAndShipOrder(orderId) {
-      const order = state.orders.find(o => o.id === orderId);
-      if (!order) return;
-      const prefix = order.shippingPartner.includes('Tiết Kiệm') ? 'GHTK' : 'GHN';
-      order.trackingCode = prefix + Math.floor(100000 + Math.random() * 899999);
-      order.status = 'DANG_GIAO';
-      saveState();
-      renderAdminPortal();
-      showToast(`Đã duyệt đơn #${order.id}, sinh mã vận đơn ${order.trackingCode}.`, 'success');
+    async function approveAndShipOrder(orderId) {
+      try {
+        const res = await api(`/orders/${encodeURIComponent(orderId)}/ship`, { method: 'POST' });
+        await syncFromServer();
+        showToast(`Đã duyệt đơn #${orderId}, sinh mã vận đơn ${res.trackingCode}.`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
-    function completeOrder(orderId) {
-      const order = state.orders.find(o => o.id === orderId);
-      if (!order) return;
-      order.status = 'HOAN_THANH';
-      saveState();
-      renderAdminPortal();
-      showToast(`Đơn hàng #${order.id} đã hoàn thành.`, 'success');
+    async function completeOrder(orderId) {
+      try {
+        await api(`/orders/${encodeURIComponent(orderId)}/complete`, { method: 'POST' });
+        await syncFromServer();
+        showToast(`Đơn hàng #${orderId} đã hoàn thành.`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     function cancelOrderByAdmin(orderId) {
       openConfirmModal(
         `Hủy đơn hàng #${orderId}`,
         'Khi hủy đơn, hệ thống sẽ tự động hoàn trả chính xác số lượng sản phẩm vào tồn kho. Bạn chắc chắn muốn hủy?',
-        () => {
-          const order = state.orders.find(o => o.id === orderId);
-          if (!order || order.status === 'DA_HUY') return;
-          order.status = 'DA_HUY';
-          order.items.forEach(item => {
-            const p = state.products.find(x => x.id === item.productId);
-            if (p) {
-              p.stock += item.qty;
-              p.sold = Math.max(0, p.sold - item.qty);
-            }
-          });
-          saveState();
-          renderAdminPortal();
-          showToast(`Đã hủy đơn #${order.id} và hoàn trả tồn kho thành công.`, 'warning');
+        async () => {
+          try {
+            await api(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' });
+            await syncFromServer();
+            showToast(`Đã hủy đơn #${orderId} và hoàn trả tồn kho thành công.`, 'warning');
+          } catch (err) {
+            showToast(err.message, 'error');
+          }
         }
       );
     }
@@ -2491,7 +2316,7 @@
       document.getElementById('product-form-modal').classList.remove('hidden');
     }
 
-    function saveProductForm(e) {
+    async function saveProductForm(e) {
       e.preventDefault();
       const id = document.getElementById('pf-id').value;
       const name = document.getElementById('pf-name').value.trim();
@@ -2508,28 +2333,26 @@
         return;
       }
 
-      const price = Number(priceVal);
-      const stock = Number(stockVal);
+      const payload = {
+        name, sku, category,
+        price: Number(priceVal),
+        stock: Number(stockVal),
+        icon, desc
+      };
 
-      if (id) {
-        const idx = state.products.findIndex(x => x.id === Number(id));
-        if (idx !== -1) {
-          state.products[idx] = { ...state.products[idx], name, sku, category, price, stock, icon, desc };
+      try {
+        if (id) {
+          await api(`/products/${Number(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
+          showToast(`Đã cập nhật sản phẩm "${name}".`, 'success');
+        } else {
+          await api('/products', { method: 'POST', body: JSON.stringify(payload) });
+          showToast(`Đã thêm sản phẩm mới "${name}".`, 'success');
         }
-        showToast(`Đã cập nhật sản phẩm "${name}".`, 'success');
-      } else {
-        state.products.unshift({
-          id: Date.now(),
-          name, sku, category, price, stock, sold: 0, icon,
-          specs: 'Hàng chính hãng • Bảo hành tiêu chuẩn 12 tháng',
-          desc
-        });
-        showToast(`Đã thêm sản phẩm mới "${name}".`, 'success');
+        closeModal('product-form-modal');
+        await syncFromServer();
+      } catch (err) {
+        showToast(err.message, 'error');
       }
-
-      saveState();
-      closeModal('product-form-modal');
-      renderAdminPortal();
     }
 
     function deleteProduct(productId) {
@@ -2538,45 +2361,56 @@
       openConfirmModal(
         'Xác nhận xóa sản phẩm',
         `Bạn có chắc chắn muốn xóa "${p.name}" (${p.sku}) khỏi hệ thống?`,
-        () => {
-          state.products = state.products.filter(x => x.id !== productId);
-          state.cart = state.cart.filter(c => c.productId !== productId);
-          saveState();
-          renderAdminPortal();
-          showToast('Đã xóa sản phẩm thành công.', 'info');
+        async () => {
+          try {
+            await api(`/products/${productId}`, { method: 'DELETE' });
+            await syncFromServer();
+            showToast('Đã xóa sản phẩm thành công.', 'info');
+          } catch (err) {
+            showToast(err.message, 'error');
+          }
         }
       );
     }
 
-    // UC07: Báo cáo & Thống kê (CHỈ ADMIN)
+    // UC07: Báo cáo & Thống kê (CHỈ ADMIN) - tính trực tiếp từ đơn hàng trong CSDL
     function renderAdminReports() {
       const period = document.getElementById('report-period').value;
-      const currentRevenue = state.orders
-        .filter(o => o.status !== 'DA_HUY')
-        .reduce((s, o) => s + o.totalAmount, 0);
+      const validOrders = state.orders.filter(o => o.status !== 'DA_HUY');
+      const now = new Date();
+      const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const today = startOfDay(now);
 
-      const chartData = period === '7days'
-        ? [
-            { label: 'T2', val: 8500000 },
-            { label: 'T3', val: 12900000 },
-            { label: 'T4', val: 9400000 },
-            { label: 'T5', val: 16200000 },
-            { label: 'T6', val: 19800000 },
-            { label: 'T7', val: 15100000 },
-            { label: 'Hôm nay', val: currentRevenue }
-          ]
-        : period === 'month'
-        ? [
-            { label: 'Tuần 1', val: 38000000 },
-            { label: 'Tuần 2', val: 52500000 },
-            { label: 'Tuần 3', val: 46000000 },
-            { label: 'Tuần 4', val: currentRevenue + 24000000 }
-          ]
-        : [
-            { label: 'Tháng 9', val: 142000000 },
-            { label: 'Tháng 10', val: 168500000 },
-            { label: 'Tháng 11', val: currentRevenue + 135000000 }
-          ];
+      let chartData = [];
+      if (period === '7days') {
+        const dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        for (let i = 6; i >= 0; i--) {
+          const day = new Date(today.getTime() - i * 86400000);
+          const next = new Date(day.getTime() + 86400000);
+          const val = validOrders
+            .filter(o => o.dateISO && new Date(o.dateISO) >= day && new Date(o.dateISO) < next)
+            .reduce((s, o) => s + o.totalAmount, 0);
+          chartData.push({ label: i === 0 ? 'Hôm nay' : dayLabels[day.getDay()], val });
+        }
+      } else if (period === 'month') {
+        for (let w = 3; w >= 0; w--) {
+          const end = new Date(today.getTime() + 86400000 - w * 7 * 86400000);
+          const start = new Date(end.getTime() - 7 * 86400000);
+          const val = validOrders
+            .filter(o => o.dateISO && new Date(o.dateISO) >= start && new Date(o.dateISO) < end)
+            .reduce((s, o) => s + o.totalAmount, 0);
+          chartData.push({ label: `Tuần ${4 - w}`, val });
+        }
+      } else {
+        for (let m = 2; m >= 0; m--) {
+          const start = new Date(now.getFullYear(), now.getMonth() - m, 1);
+          const end = new Date(now.getFullYear(), now.getMonth() - m + 1, 1);
+          const val = validOrders
+            .filter(o => o.dateISO && new Date(o.dateISO) >= start && new Date(o.dateISO) < end)
+            .reduce((s, o) => s + o.totalAmount, 0);
+          chartData.push({ label: `Tháng ${start.getMonth() + 1}`, val });
+        }
+      }
 
       const maxVal = Math.max(...chartData.map(d => d.val), 1);
       document.getElementById('revenue-chart-container').innerHTML = chartData.map(d => {
@@ -2651,14 +2485,15 @@
     // Quản lý Voucher (CHỈ ADMIN)
     function renderAdminVouchers() {
       const tbody = document.getElementById('admin-vouchers-tbody');
-      tbody.innerHTML = state.vouchers.map(v => `
+      const list = state.allVouchers && state.allVouchers.length ? state.allVouchers : state.vouchers;
+      tbody.innerHTML = list.map(v => `
         <tr class="hover:bg-slate-50">
-          <td class="py-3 px-3 font-mono font-bold text-emerald-700">${v.code}</td>
+          <td class="py-3 px-3 font-mono font-bold ${v.expired ? 'text-slate-400 line-through' : 'text-emerald-700'}">${v.code}</td>
           <td class="py-3 px-3 text-xs">${v.type === 'fixed' ? 'Giảm tiền cố định' : 'Giảm theo %'}</td>
           <td class="py-3 px-3 text-xs font-bold text-slate-800">
             ${v.type === 'fixed' ? formatVND(v.value) : `${v.value}% (Tối đa ${formatVND(v.maxDiscount)})`}
           </td>
-          <td class="py-3 px-3 text-xs text-slate-500">${v.desc}</td>
+          <td class="py-3 px-3 text-xs text-slate-500">${v.desc}${v.expiry ? ` <span class="text-[11px] ${v.expired ? 'text-rose-500 font-semibold' : 'text-slate-400'}">(HSD: ${v.expiry})</span>` : ''}</td>
           <td class="py-3 px-3 text-right">
             <button onclick="deleteVoucher('${v.code}')" class="px-3 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold hover:bg-rose-100">Xóa</button>
           </td>
@@ -2666,33 +2501,34 @@
       `).join('');
     }
 
-    function addVoucher(e) {
+    async function addVoucher(e) {
       e.preventDefault();
       const code = document.getElementById('v-code').value.trim().toUpperCase();
       const type = document.getElementById('v-type').value;
       const value = Number(document.getElementById('v-value').value);
       const maxDiscount = Number(document.getElementById('v-max').value);
 
-      if (state.vouchers.some(v => v.code === code)) {
-        showToast('Mã voucher này đã tồn tại!', 'error');
-        return;
+      try {
+        await api('/vouchers', {
+          method: 'POST',
+          body: JSON.stringify({ code, type, value, maxDiscount })
+        });
+        e.target.reset();
+        await syncFromServer();
+        showToast(`Đã thêm voucher ${code} vào CSDL thành công.`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
       }
-      const desc = type === 'fixed'
-        ? `Giảm ${formatVND(value)}`
-        : `Giảm ${value}%, tối đa ${formatVND(maxDiscount)}`;
-
-      state.vouchers.push({ code, type, value, maxDiscount, minOrder: 0, desc });
-      saveState();
-      e.target.reset();
-      renderAdminVouchers();
-      showToast(`Đã thêm voucher ${code} thành công.`, 'success');
     }
 
-    function deleteVoucher(code) {
-      state.vouchers = state.vouchers.filter(v => v.code !== code);
-      saveState();
-      renderAdminVouchers();
-      showToast(`Đã xóa voucher ${code}.`, 'info');
+    async function deleteVoucher(code) {
+      try {
+        await api(`/vouchers/${encodeURIComponent(code)}`, { method: 'DELETE' });
+        await syncFromServer();
+        showToast(`Đã xóa voucher ${code}.`, 'info');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     // Quản lý Tài khoản (CHỈ ADMIN)
@@ -2731,29 +2567,28 @@
       }).join('');
     }
 
-    function toggleAccountStatus(accId) {
-      const acc = state.accounts.find(a => a.id === accId);
-      if (!acc) return;
-      acc.trang_thai = !acc.trang_thai;
-      saveState();
-      renderAdminAccounts();
-      showToast(`Đã ${acc.trang_thai ? 'mở khóa' : 'khóa'} tài khoản ${acc.email}.`, 'info');
+    async function toggleAccountStatus(accId) {
+      try {
+        const res = await api(`/accounts/${accId}/toggle`, { method: 'POST' });
+        await syncFromServer();
+        showToast(`Đã ${res.trang_thai ? 'mở khóa' : 'khóa'} tài khoản ${res.email}.`, 'info');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     function confirmResetDemo() {
       openConfirmModal(
-        'Khôi phục dữ liệu mẫu',
-        'Toàn bộ đơn hàng, tồn kho và tài khoản sẽ được đưa về mặc định ban đầu. Bạn muốn tiếp tục?',
-        () => {
-          const currentAdmin = state.currentUser;
-          state = getDefaultState();
-          // Giữ phiên đăng nhập quản trị hiện tại nếu đang trong Portal
-          if (currentAdmin && (currentAdmin.vai_tro === 'ADMIN' || currentAdmin.vai_tro === 'NHAN_VIEN')) {
-            state.currentUser = currentAdmin;
+        'Khôi phục dữ liệu mẫu SQL Server',
+        'Toàn bộ đơn hàng, tồn kho, đánh giá và tài khoản trong database NPK sẽ được nạp lại từ file 02_seed.sql. Bạn muốn tiếp tục?',
+        async () => {
+          try {
+            await api('/admin/reset', { method: 'POST' });
+            await syncFromServer();
+            showToast('Đã khôi phục dữ liệu mẫu SQL Server thành công.', 'success');
+          } catch (err) {
+            showToast(err.message, 'error');
           }
-          saveState();
-          renderCurrentRoute();
-          showToast('Đã khôi phục dữ liệu mẫu thành công.', 'success');
         },
         'bg-sky-600 hover:bg-sky-700'
       );
@@ -2765,6 +2600,7 @@
         window.location.hash = '#shop';
       }
       renderCurrentRoute();
+      syncFromServer();
     };
   </script>
 </body>

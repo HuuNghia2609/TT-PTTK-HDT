@@ -1,0 +1,20 @@
+{
+  "name": "npk-shop",
+  "version": "1.0.0",
+  "description": "NPK-SHOP - Website bán hàng trực tuyến (Node.js + Express + SQL Server)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/init-db.js --seed-only"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "mssql": "^11.0.1"
+  },
+  "optionalDependencies": {
+    "msnodesqlv8": "^4.5.0"
+  }
+}
